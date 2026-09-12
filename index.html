@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Portal de clientes · Walkmansion</title>
+<style>
+  :root{
+    --navy:#282D3A; --lima:#D0FB57; --blanco:#fff;
+    --fondo:#F6F7F8; --linea:#E3E6EA; --texto:#282D3A;
+    --tenue:#6B7280; --tenue2:#9AA1AC; --alerta:#B45309;
+    --radio:14px;
+    --fuente:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--fuente);background:var(--fondo);color:var(--texto);
+       -webkit-font-smoothing:antialiased;line-height:1.5}
+  .oculto{display:none!important}
+
+  /* ---------- Entrada ---------- */
+  #entrada{min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:24px;background:var(--navy)}
+  .caja{width:100%;max-width:380px}
+  .marca{display:flex;align-items:baseline;gap:2px;margin-bottom:28px;justify-content:center}
+  .marca b{color:#fff;font-size:22px;font-weight:700;letter-spacing:-.02em}
+  .marca i{display:inline-block;width:9px;height:22px;background:var(--lima);
+           transform:skewX(-18deg);margin:0 3px}
+  .caja h1{color:#fff;font-size:19px;font-weight:600;margin-bottom:4px;text-align:center}
+  .caja p.sub{color:#98A0AE;font-size:14px;margin-bottom:24px;text-align:center}
+  .campo{margin-bottom:12px}
+  .campo label{display:block;font-size:12px;color:#98A0AE;margin-bottom:6px;font-weight:500}
+  .campo input{width:100%;padding:13px 14px;border:1px solid #3A4152;border-radius:10px;
+    background:#31384A;color:#fff;font-size:16px;font-family:inherit}
+  .campo input:focus{outline:none;border-color:var(--lima)}
+  button.principal{width:100%;padding:14px;border:0;border-radius:10px;background:var(--lima);
+    color:var(--navy);font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;margin-top:8px}
+  button.principal:disabled{opacity:.55;cursor:default}
+  #errorEntrada{color:#FCA5A5;font-size:13px;margin-top:14px;text-align:center;min-height:18px}
+  .alterno{display:block;width:100%;background:none;border:0;color:#98A0AE;font-size:13px;
+    font-family:inherit;cursor:pointer;margin-top:14px;text-decoration:underline;text-underline-offset:3px}
+  .enviado{background:#31384A;border:1px solid #3A4152;border-radius:10px;padding:16px;
+    margin-top:16px;color:#fff;font-size:14px;line-height:1.55;text-align:center}
+  .enviado b{color:var(--lima)}
+
+  /* ---------- Portal ---------- */
+  #portal{max-width:620px;margin:0 auto;padding:0 16px 56px}
+  header.barra{display:flex;align-items:center;justify-content:space-between;
+    padding:18px 0 22px;border-bottom:1px solid var(--linea);margin-bottom:24px}
+  header.barra .marca{margin:0}
+  header.barra .marca b{color:var(--navy);font-size:17px}
+  header.barra .marca i{height:17px;width:7px}
+  .salir{background:none;border:0;color:var(--tenue);font-size:13px;cursor:pointer;font-family:inherit;padding:6px}
+
+  .saludo{font-size:13px;color:var(--tenue);margin-bottom:2px}
+  .nombre{font-size:23px;font-weight:700;letter-spacing:-.02em;margin-bottom:20px}
+
+  .tarjeta{background:#fff;border:1px solid var(--linea);border-radius:var(--radio);
+    padding:18px;margin-bottom:14px}
+  .etiqueta{font-size:11px;text-transform:uppercase;letter-spacing:.09em;
+    color:var(--tenue2);font-weight:600;margin-bottom:10px}
+  .corte{font-size:11px;color:var(--tenue2);margin-top:12px;padding-top:10px;border-top:1px solid var(--linea)}
+
+  /* Bloque principal */
+  .hero{background:var(--navy);border-radius:var(--radio);padding:22px;margin-bottom:14px;color:#fff}
+  .hero .etiqueta{color:var(--lima);margin-bottom:8px}
+  .hero .monto{font-size:36px;font-weight:700;letter-spacing:-.03em;line-height:1.1}
+  .hero .cuando{font-size:15px;color:#B7BECB;margin-top:6px}
+  .hero .nota{font-size:12px;color:#8A93A2;margin-top:14px;padding-top:12px;border-top:1px solid #3A4152}
+
+  /* Aportado */
+  .cifras{display:flex;gap:12px;flex-wrap:wrap}
+  .cifra{flex:1;min-width:130px}
+  .cifra .v{font-size:22px;font-weight:700;letter-spacing:-.02em}
+  .cifra .k{font-size:12px;color:var(--tenue);margin-top:2px}
+  .barra{height:7px;background:#EDF0F3;border-radius:99px;overflow:hidden;margin-top:14px}
+  .barra span{display:block;height:100%;background:var(--navy);border-radius:99px}
+
+  .preliminar{display:inline-block;background:#FEF3C7;color:var(--alerta);font-size:11px;
+    font-weight:600;padding:4px 9px;border-radius:99px;margin-top:12px}
+
+  /* Unidad */
+  .datos{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px}
+  .datos div span{display:block;font-size:11px;color:var(--tenue2);margin-bottom:1px}
+  .datos div b{font-size:14px;font-weight:600}
+
+  /* Movimientos */
+  .mov{display:flex;justify-content:space-between;gap:12px;padding:13px 0;border-bottom:1px solid var(--linea)}
+  .mov:last-of-type{border-bottom:0;padding-bottom:0}
+  .mov .izq .c{font-size:14px;font-weight:600}
+  .mov .izq .d{font-size:12px;color:var(--tenue);margin-top:2px}
+  .mov .der{text-align:right;white-space:nowrap}
+  .mov .der .m{font-size:14px;font-weight:600}
+  .mov .der .r{font-size:11px;color:var(--tenue2);margin-top:2px}
+
+  .masmov{width:100%;margin-top:14px;padding:11px;background:#F4F6F8;border:1px solid var(--linea);
+    border-radius:10px;color:var(--texto);font-size:13px;font-weight:600;font-family:inherit;cursor:pointer}
+  .masmov:hover{background:#EDF0F3}
+  .pie{font-size:12px;color:var(--tenue2);text-align:center;margin-top:26px;line-height:1.6}
+  #cargando{padding:80px 20px;text-align:center;color:var(--tenue)}
+</style>
+</head>
+<body>
+
+<!-- ============ ENTRADA ============ -->
+<section id="entrada" class="oculto">
+  <div class="caja">
+    <div class="marca"><b>Walkmansion</b><i></i></div>
+    <h1>Tu portal</h1>
+    <p class="sub">Escribe tu correo y te mandamos un enlace para entrar. Sin contraseñas.</p>
+    <form id="formEntrada">
+      <div class="campo">
+        <label for="correo">Tu correo</label>
+        <input id="correo" type="email" autocomplete="email" required>
+      </div>
+      <div class="campo oculto" id="campoClave">
+        <label for="clave">Contraseña</label>
+        <input id="clave" type="password" autocomplete="current-password">
+      </div>
+      <button class="principal" id="btnEntrar" type="submit">Enviar mi enlace de acceso</button>
+      <div id="errorEntrada"></div>
+      <div id="avisoEnviado" class="enviado oculto"></div>
+      <!-- Puerta de servicio: solo para las pruebas de Carlos. Se quita antes de dar acceso a clientes. -->
+      <button type="button" class="alterno" id="btnAlterno">Entrar con contraseña</button>
+    </form>
+  </div>
+</section>
+
+<div id="cargando">Cargando…</div>
+
+<!-- ============ PORTAL ============ -->
+<main id="portal" class="oculto">
+  <header class="barra">
+    <div class="marca"><b>Walkmansion</b><i></i></div>
+    <button class="salir" id="btnSalir">Salir</button>
+  </header>
+
+  <p class="saludo">Hola,</p>
+  <h1 class="nombre" id="nombre"></h1>
+
+  <!-- Lo que sigue: próximo pago o saldo de liquidación -->
+  <section class="hero" id="hero"></section>
+
+  <!-- Lo aportado -->
+  <section class="tarjeta">
+    <div class="etiqueta">Lo que llevas pagado</div>
+    <div class="cifras">
+      <div class="cifra"><div class="v" id="aportado"></div><div class="k">aportado</div></div>
+      <div class="cifra"><div class="v" id="porcentaje"></div><div class="k">del valor de tu unidad</div></div>
+    </div>
+    <div class="barra"><span id="barra"></span></div>
+    <div id="avisoPreliminar"></div>
+    <div class="corte" id="cortePago"></div>
+  </section>
+
+  <!-- Su unidad -->
+  <section class="tarjeta">
+    <div class="etiqueta">Tu unidad</div>
+    <div class="datos" id="datosUnidad"></div>
+  </section>
+
+  <!-- Movimientos -->
+  <section class="tarjeta">
+    <div class="etiqueta">Movimientos identificados</div>
+    <div id="movimientos"></div>
+    <div class="corte" id="corteMovimientos"></div>
+  </section>
+
+  <p class="pie" id="pie"></p>
+</main>
+
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm'
+
+const SUPABASE_URL = 'https://lyumrzowusjzfeqkglvm.supabase.co'
+const SUPABASE_KEY = 'sb_publishable_623gFtuDfFpP_Ghi9KEjAA_jlqb3RDG'
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY)
+
+const $ = id => document.getElementById(id)
+const mostrar = id => $(id).classList.remove('oculto')
+const esconder = id => $(id).classList.add('oculto')
+
+const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']
+const dinero = n => (n===null||n===undefined) ? '—'
+  : '$' + Number(n).toLocaleString('es-MX',{minimumFractionDigits:2, maximumFractionDigits:2})
+const dineroCorto = n => '$' + Number(n).toLocaleString('es-MX',{maximumFractionDigits:0})
+const fecha = s => { if(!s) return '—'
+  const [a,m,d] = s.split('-').map(Number)
+  return `${d} de ${MESES[m-1]} de ${a}` }
+const fechaCorta = s => { if(!s) return '—'
+  const [a,m,d] = s.split('-').map(Number)
+  return `${d} ${MESES[m-1].slice(0,3)} ${a}` }
+const sumarMeses = (iso, n) => {
+  const [a,m,d] = iso.split('-').map(Number)
+  const f = new Date(Date.UTC(a, m-1+n, 1))
+  const ultimo = new Date(Date.UTC(f.getUTCFullYear(), f.getUTCMonth()+1, 0)).getUTCDate()
+  f.setUTCDate(Math.min(d, ultimo))
+  return f.toISOString().slice(0,10)
+}
+
+// ---------- Arranque ----------
+const { data:{ session } } = await sb.auth.getSession()
+session ? cargar() : (esconder('cargando'), mostrar('entrada'))
+
+// Dos formas de entrar. El enlace por correo es la de los clientes; la contraseña
+// es puerta de servicio para las pruebas y se quita antes del lanzamiento.
+let modoClave = false
+
+$('btnAlterno').addEventListener('click', () => {
+  modoClave = !modoClave
+  $('campoClave').classList.toggle('oculto', !modoClave)
+  $('clave').required = modoClave
+  $('btnEntrar').textContent = modoClave ? 'Entrar' : 'Enviar mi enlace de acceso'
+  $('btnAlterno').textContent = modoClave ? 'Mejor mándame un enlace' : 'Entrar con contraseña'
+  $('errorEntrada').textContent = ''
+  $('avisoEnviado').classList.add('oculto')
+})
+
+$('formEntrada').addEventListener('submit', async e => {
+  e.preventDefault()
+  const correo = $('correo').value.trim()
+  $('btnEntrar').disabled = true
+  $('errorEntrada').textContent = ''
+  $('avisoEnviado').classList.add('oculto')
+
+  if (modoClave) {
+    const { error } = await sb.auth.signInWithPassword({ email: correo, password: $('clave').value })
+    $('btnEntrar').disabled = false
+    if (error) { $('errorEntrada').textContent = 'No pudimos entrar con esos datos.'; return }
+    esconder('entrada'); mostrar('cargando'); cargar()
+    return
+  }
+
+  const { error } = await sb.auth.signInWithOtp({
+    email: correo,
+    options: { emailRedirectTo: location.origin + location.pathname, shouldCreateUser: false }
+  })
+  $('btnEntrar').disabled = false
+
+  if (error) {
+    // shouldCreateUser:false hace que un correo que no está dado de alta no reciba nada.
+    // No se le dice "no existe": eso le confirmaría a un extraño quién es cliente y quién no.
+    $('errorEntrada').textContent = 'No pudimos enviar el enlace en este momento. Escríbele a tu asesor.'
+    return
+  }
+  $('avisoEnviado').classList.remove('oculto')
+  $('avisoEnviado').innerHTML =
+    `Si <b>${correo}</b> está registrado, en unos segundos te llega un enlace.<br>
+     Ábrelo desde este mismo dispositivo. Vence en una hora.`
+})
+
+$('btnSalir').addEventListener('click', async () => {
+  await sb.auth.signOut(); location.reload()
+})
+
+// ---------- Carga ----------
+async function cargar(){
+  const { data: cliente } = await sb.from('clientes').select('nombre').single()
+
+  const { data: compra, error } = await sb.from('compras').select(`
+      precio_total, precio_departamento, pagado_confirmado, pagado_es_preliminar,
+      pagado_fecha_corte, num_mensualidades, monto_mensualidad, dia_pago,
+      primera_mensualidad, esquema, cajones_desc, bodega_desc,
+      unidades ( numero, nivel,
+        modelos ( nombre, recamaras, banos, superficie_m2, construccion_m2, terraza_m2 ),
+        torres ( nombre, entrega_estimada, entrega_contrato,
+          desarrollos ( nombre, desarrollador ) ) )
+    `).single()
+
+  if (error || !compra) {
+    esconder('cargando')
+    $('portal').classList.remove('oculto')
+    $('nombre').textContent = cliente?.nombre || ''
+    $('hero').innerHTML = `<div class="etiqueta">Tu portal</div>
+      <div class="cuando">Todavía no hay información cargada en tu cuenta.
+      Escríbele a tu asesor y la subimos.</div>`
+    return
+  }
+
+  const { data: pagos } = await sb.from('pagos')
+    .select('fecha, concepto, monto, forma_pago, banco_parcial, num_recibo')
+    .order('fecha', { ascending: true })
+
+  pintar(cliente, compra, pagos || [])
+}
+
+// ---------- Pintado ----------
+function pintar(cliente, c, pagos){
+  const u = c.unidades, m = u.modelos, t = u.torres, d = t.desarrollos
+
+  $('nombre').textContent = cliente?.nombre || ''
+
+  // -- Cuántas mensualidades lleva --
+  const pagadas = pagos.filter(p => /mensualidad/i.test(p.concepto)).length
+  const faltan  = (c.num_mensualidades || 0) - pagadas
+
+  // -- Bloque principal --
+  if (faltan > 0 && c.primera_mensualidad) {
+    const vence = sumarMeses(c.primera_mensualidad, pagadas)
+    $('hero').innerHTML = `
+      <div class="etiqueta">Tu próximo pago</div>
+      <div class="monto">${dinero(c.monto_mensualidad)}</div>
+      <div class="cuando">Vence el ${fecha(vence)}</div>
+      <div class="nota">Mensualidad ${pagadas+1} de ${c.num_mensualidades}
+        · te faltan ${faltan} después de esta</div>`
+  } else {
+    // Ya terminó sus mensualidades: lo que sigue es liquidar contra entrega.
+    // Nunca se le llama "próximo pago" a algo que no tiene fecha de cobro.
+    const saldo = Number(c.precio_total) - Number(c.pagado_confirmado || 0)
+    $('hero').innerHTML = `
+      <div class="etiqueta">Saldo a liquidar contra entrega</div>
+      <div class="monto">${dinero(saldo)}</div>
+      <div class="cuando">Entrega estimada: ${fecha(t.entrega_estimada)}</div>
+      <div class="nota">Ya cubriste tus ${c.num_mensualidades} mensualidades.
+        Este saldo se paga al momento de la entrega.</div>`
+  }
+
+  // -- Aportado --
+  const pagado = Number(c.pagado_confirmado || 0)
+  const total  = Number(c.precio_total)
+  $('aportado').textContent   = dinero(pagado)
+  $('porcentaje').textContent = total ? (pagado/total*100).toFixed(1).replace('.',',') + '%' : '—'
+  $('barra').style.width      = total ? Math.min(100, pagado/total*100) + '%' : '0%'
+
+  if (c.pagado_es_preliminar) {
+    $('avisoPreliminar').innerHTML =
+      `<span class="preliminar">Cifra preliminar · en confirmación con el desarrollador</span>`
+  }
+  $('cortePago').textContent = c.pagado_fecha_corte
+    ? `Información actualizada al ${fecha(c.pagado_fecha_corte)}`
+    : 'Fecha de corte pendiente'
+
+  // -- Unidad --
+  const filas = [
+    ['Desarrollo', d.nombre],
+    ['Unidad',     `${u.numero}${t.nombre && t.nombre !== 'Única' ? ' · torre ' + t.nombre : ''}`],
+    ['Nivel',      u.nivel ?? '—'],
+    ['Prototipo',  m.nombre],
+    ['Recámaras',  `${m.recamaras} rec · ${m.banos} baños`],
+    ['Superficie', `${m.superficie_m2} m²`],
+  ]
+  if (m.terraza_m2) filas.push(['Terraza', `${m.terraza_m2} m²`])
+  if (c.cajones_desc) filas.push(['Estacionamiento', c.cajones_desc])
+  if (c.bodega_desc)  filas.push(['Bodega', c.bodega_desc])
+  filas.push(['Desarrollador', d.desarrollador || '—'])
+  filas.push(['Esquema de pago', c.esquema || '—'])
+
+  $('datosUnidad').innerHTML = filas
+    .map(([k,v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('')
+
+  // -- Movimientos --
+  // Se muestran los recientes y el resto queda plegado. Con dos años de mensualidades
+  // la lista completa sepulta todo lo demás, y lo que el cliente mira primero es lo último.
+  // El detalle no se pierde: se guarda a un clic.
+  const VISIBLES = 4
+  const orden = pagos.slice().reverse()
+  const fila = p => `
+    <div class="mov">
+      <div class="izq">
+        <div class="c">${p.concepto}</div>
+        <div class="d">${fechaCorta(p.fecha)}${p.forma_pago ? ' · ' + p.forma_pago : ''}${
+          p.banco_parcial && p.banco_parcial !== '—' ? ' · ' + p.banco_parcial : ''}</div>
+      </div>
+      <div class="der">
+        <div class="m">${dinero(p.monto)}</div>
+        ${p.num_recibo ? `<div class="r">recibo ${p.num_recibo}</div>` : ''}
+      </div>
+    </div>`
+
+  if (!orden.length) {
+    $('movimientos').innerHTML = `<p style="color:var(--tenue);font-size:14px">Todavía no hay movimientos registrados.</p>`
+  } else if (orden.length <= VISIBLES) {
+    $('movimientos').innerHTML = orden.map(fila).join('')
+  } else {
+    const ocultos = orden.length - VISIBLES
+    $('movimientos').innerHTML =
+      `<div id="movRecientes">${orden.slice(0, VISIBLES).map(fila).join('')}</div>
+       <div id="movResto" class="oculto">${orden.slice(VISIBLES).map(fila).join('')}</div>
+       <button class="masmov" id="btnMasMov">Ver los ${ocultos} movimientos anteriores</button>`
+    let abierto = false
+    $('btnMasMov').addEventListener('click', () => {
+      abierto = !abierto
+      $('movResto').classList.toggle('oculto', !abierto)
+      $('btnMasMov').textContent = abierto
+        ? 'Ver menos'
+        : `Ver los ${ocultos} movimientos anteriores`
+    })
+  }
+
+  const suma = pagos.reduce((a,p) => a + Number(p.monto), 0)
+  $('corteMovimientos').textContent =
+    `${pagos.length} ${pagos.length===1?'movimiento':'movimientos'} · suman ${dinero(suma)}`
+
+  // -- Pie --
+  const entregaContrato = t.entrega_contrato
+    ? ` · Entrega comprometida en contrato: ${fecha(t.entrega_contrato)}`
+    : ''
+  $('pie').textContent =
+    `Entrega estimada: ${fecha(t.entrega_estimada)}${entregaContrato}. ` +
+    `Si algo aquí no coincide con tu contrato, dínoslo.`
+
+  esconder('cargando'); mostrar('portal')
+}
+</script>
+</body>
+</html>
