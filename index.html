@@ -104,6 +104,19 @@
   .masmov{width:100%;margin-top:14px;padding:11px;background:#F4F6F8;border:1px solid var(--linea);
     border-radius:10px;color:var(--texto);font-size:13px;font-weight:600;font-family:inherit;cursor:pointer}
   .masmov:hover{background:#EDF0F3}
+  .doc{display:flex;align-items:center;gap:13px;padding:13px 0;border-bottom:1px solid var(--linea)}
+  .doc:last-of-type{border-bottom:0;padding-bottom:0}
+  .doc .ico{flex:0 0 38px;height:44px;border:1px solid var(--linea);border-radius:7px;
+    display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;
+    color:var(--tenue);background:#FAFBFC;letter-spacing:.03em}
+  .doc .txt{flex:1;min-width:0}
+  .doc .txt .n{font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .doc .txt .t{font-size:12px;color:var(--tenue);margin-top:2px}
+  .doc .ver{flex:0 0 auto;background:none;border:1px solid var(--linea);border-radius:8px;
+    padding:8px 14px;font-size:13px;font-weight:600;color:var(--texto);font-family:inherit;cursor:pointer}
+  .doc .ver:hover{background:#F4F6F8}
+  .doc .ver:disabled{opacity:.5;cursor:default}
+  .vacio{color:var(--tenue);font-size:14px;line-height:1.55}
   .pie{font-size:12px;color:var(--tenue2);text-align:center;margin-top:26px;line-height:1.6}
   #cargando{padding:80px 20px;text-align:center;color:var(--tenue)}
 </style>
@@ -180,6 +193,12 @@
     <div class="etiqueta">Movimientos identificados</div>
     <div id="movimientos"></div>
     <div class="corte" id="corteMovimientos"></div>
+  </section>
+
+  <!-- Documentos -->
+  <section class="tarjeta">
+    <div class="etiqueta">Tus documentos</div>
+    <div id="documentos"></div>
   </section>
 
   <p class="pie" id="pie"></p>
@@ -328,11 +347,15 @@ async function cargar(){
     .select('fecha, concepto, monto, forma_pago, banco_parcial, num_recibo')
     .order('fecha', { ascending: true })
 
-  pintar(cliente, compra, pagos || [])
+  const { data: docs } = await sb.from('documentos')
+    .select('tipo, nombre, storage_path, subido_en')
+    .order('subido_en', { ascending: false })
+
+  pintar(cliente, compra, pagos || [], docs || [])
 }
 
 // ---------- Pintado ----------
-function pintar(cliente, c, pagos){
+function pintar(cliente, c, pagos, docs){
   const u = c.unidades, m = u.modelos, t = u.torres, d = t.desarrollos
 
   $('nombre').textContent = cliente?.nombre || ''
@@ -437,6 +460,43 @@ function pintar(cliente, c, pagos){
   const suma = pagos.reduce((a,p) => a + Number(p.monto), 0)
   $('corteMovimientos').textContent =
     `${pagos.length} ${pagos.length===1?'movimiento':'movimientos'} · suman ${dinero(suma)}`
+
+  // -- Documentos --
+  // Los archivos viven en almacenamiento PRIVADO. No hay liga permanente a ninguno:
+  // al dar clic se pide un enlace temporal que vive un minuto y luego muere. Si alguien
+  // copiara ese enlace, deja de servir solo. Nunca hay una URL pública de un contrato.
+  const extension = n => (n.split('.').pop() || '').toUpperCase().slice(0, 4)
+
+  $('documentos').innerHTML = docs.length
+    ? docs.map((d, i) => `
+        <div class="doc">
+          <div class="ico">${extension(d.nombre)}</div>
+          <div class="txt">
+            <div class="n">${d.nombre}</div>
+            <div class="t">${d.tipo}</div>
+          </div>
+          <button class="ver" data-i="${i}">Ver</button>
+        </div>`).join('')
+    : `<p class="vacio">Todavía no hay documentos cargados.
+       Tu contrato y tus comprobantes aparecerán aquí.</p>`
+
+  $('documentos').querySelectorAll('.ver').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const d = docs[Number(btn.dataset.i)]
+      btn.disabled = true
+      const previo = btn.textContent
+      btn.textContent = 'Abriendo…'
+      const { data, error } = await sb.storage
+        .from('documentos').createSignedUrl(d.storage_path, 60)
+      btn.disabled = false
+      btn.textContent = previo
+      if (error || !data) {
+        btn.textContent = 'No disponible'
+        return
+      }
+      window.open(data.signedUrl, '_blank')
+    })
+  })
 
   // -- Pie --
   const entregaContrato = t.entrega_contrato
