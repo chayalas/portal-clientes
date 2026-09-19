@@ -5,15 +5,31 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Portal de clientes · Walkmansion</title>
 <style>
+  /* La marca no cambia entre modos: azul pizarra y verde lima. Lo que cambia son
+     los fondos y los textos. Todo pasa por estas variables — ningún color se
+     escribe suelto más abajo, para que agregar un modo nuevo no sea una cacería. */
   :root{
-    --navy:#282D3A; --lima:#D0FB57; --blanco:#fff;
-    --fondo:#F6F7F8; --linea:#E3E6EA; --texto:#282D3A;
-    --tenue:#6B7280; --tenue2:#9AA1AC; --alerta:#B45309;
+    --navy:#282D3A; --lima:#D0FB57;
+    --fondo:#F6F7F8; --tarjeta:#ffffff; --linea:#E3E6EA;
+    --texto:#282D3A; --tenue:#6B7280; --tenue2:#9AA1AC;
+    --hero-bg:#282D3A; --hero-linea:#3A4152; --hero-texto:#B7BECB; --hero-tenue:#8A93A2;
+    --suave:#F4F6F8; --pista:#EDF0F3; --relleno:#282D3A;
+    --aviso-bg:#FEF3C7; --aviso-texto:#B45309;
     --radio:14px;
     --fuente:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   }
+  html[data-modo="oscuro"]{
+    --fondo:#171A21; --tarjeta:#21252F; --linea:#333A48;
+    --texto:#ECEEF2; --tenue:#98A1B0; --tenue2:#79828F;
+    --hero-bg:#2E3442; --hero-linea:#434B5C; --hero-texto:#C4CBD6; --hero-tenue:#8F98A6;
+    --suave:#2A2F3B; --pista:#333A48; --relleno:#D0FB57;
+    --aviso-bg:#3A2F14; --aviso-texto:#F3C969;
+    color-scheme:dark;
+  }
+  html[data-modo="oscuro"] .barra span{background:var(--lima)}
+  html[data-modo="oscuro"] .hero .monto{color:#fff}
   *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:var(--fuente);background:var(--fondo);color:var(--texto);
+  body{font-family:var(--fuente);background:var(--fondo);color:var(--texto);transition:background .2s,color .2s;
        -webkit-font-smoothing:antialiased;line-height:1.5}
   .oculto{display:none!important}
 
@@ -58,33 +74,36 @@
   header.barra .marca{margin:0}
   header.barra .marca b{color:var(--navy);font-size:17px}
   header.barra .marca i{height:17px;width:7px}
+  .modo{background:none;border:0;color:var(--tenue);font-size:15px;cursor:pointer;
+    padding:6px 8px;border-radius:8px;line-height:1}
+  .modo:hover{background:var(--suave)}
   .salir{background:none;border:0;color:var(--tenue);font-size:13px;cursor:pointer;font-family:inherit;padding:6px}
 
   .saludo{font-size:13px;color:var(--tenue);margin-bottom:2px}
   .nombre{font-size:23px;font-weight:700;letter-spacing:-.02em;margin-bottom:20px}
 
-  .tarjeta{background:#fff;border:1px solid var(--linea);border-radius:var(--radio);
+  .tarjeta{background:var(--tarjeta);border:1px solid var(--linea);border-radius:var(--radio);
     padding:18px;margin-bottom:14px}
   .etiqueta{font-size:11px;text-transform:uppercase;letter-spacing:.09em;
     color:var(--tenue2);font-weight:600;margin-bottom:10px}
   .corte{font-size:11px;color:var(--tenue2);margin-top:12px;padding-top:10px;border-top:1px solid var(--linea)}
 
   /* Bloque principal */
-  .hero{background:var(--navy);border-radius:var(--radio);padding:22px;margin-bottom:14px;color:#fff}
+  .hero{background:var(--hero-bg);border-radius:var(--radio);padding:22px;margin-bottom:14px;color:#fff}
   .hero .etiqueta{color:var(--lima);margin-bottom:8px}
   .hero .monto{font-size:36px;font-weight:700;letter-spacing:-.03em;line-height:1.1}
-  .hero .cuando{font-size:15px;color:#B7BECB;margin-top:6px}
-  .hero .nota{font-size:12px;color:#8A93A2;margin-top:14px;padding-top:12px;border-top:1px solid #3A4152}
+  .hero .cuando{font-size:15px;color:var(--hero-texto);margin-top:6px}
+  .hero .nota{font-size:12px;color:var(--hero-tenue);margin-top:14px;padding-top:12px;border-top:1px solid var(--hero-linea)}
 
   /* Aportado */
   .cifras{display:flex;gap:12px;flex-wrap:wrap}
   .cifra{flex:1;min-width:130px}
   .cifra .v{font-size:22px;font-weight:700;letter-spacing:-.02em}
   .cifra .k{font-size:12px;color:var(--tenue);margin-top:2px}
-  .barra{height:7px;background:#EDF0F3;border-radius:99px;overflow:hidden;margin-top:14px}
-  .barra span{display:block;height:100%;background:var(--navy);border-radius:99px}
+  .barra{height:7px;background:var(--pista);border-radius:99px;overflow:hidden;margin-top:14px}
+  .barra span{display:block;height:100%;background:var(--relleno);border-radius:99px}
 
-  .preliminar{display:inline-block;background:#FEF3C7;color:var(--alerta);font-size:11px;
+  .preliminar{display:inline-block;background:var(--aviso-bg);color:var(--aviso-texto);font-size:11px;
     font-weight:600;padding:4px 9px;border-radius:99px;margin-top:12px}
 
   /* Unidad */
@@ -101,20 +120,20 @@
   .mov .der .m{font-size:14px;font-weight:600}
   .mov .der .r{font-size:11px;color:var(--tenue2);margin-top:2px}
 
-  .masmov{width:100%;margin-top:14px;padding:11px;background:#F4F6F8;border:1px solid var(--linea);
+  .masmov{width:100%;margin-top:14px;padding:11px;background:var(--suave);border:1px solid var(--linea);
     border-radius:10px;color:var(--texto);font-size:13px;font-weight:600;font-family:inherit;cursor:pointer}
-  .masmov:hover{background:#EDF0F3}
+  .masmov:hover{background:var(--pista)}
   .doc{display:flex;align-items:center;gap:13px;padding:13px 0;border-bottom:1px solid var(--linea)}
   .doc:last-of-type{border-bottom:0;padding-bottom:0}
   .doc .ico{flex:0 0 38px;height:44px;border:1px solid var(--linea);border-radius:7px;
     display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;
-    color:var(--tenue);background:#FAFBFC;letter-spacing:.03em}
+    color:var(--tenue);background:var(--suave);letter-spacing:.03em}
   .doc .txt{flex:1;min-width:0}
   .doc .txt .n{font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .doc .txt .t{font-size:12px;color:var(--tenue);margin-top:2px}
   .doc .ver{flex:0 0 auto;background:none;border:1px solid var(--linea);border-radius:8px;
     padding:8px 14px;font-size:13px;font-weight:600;color:var(--texto);font-family:inherit;cursor:pointer}
-  .doc .ver:hover{background:#F4F6F8}
+  .doc .ver:hover{background:var(--suave)}
   .doc .ver:disabled{opacity:.5;cursor:default}
   .vacio{color:var(--tenue);font-size:14px;line-height:1.55}
   .pie{font-size:12px;color:var(--tenue2);text-align:center;margin-top:26px;line-height:1.6}
@@ -161,7 +180,10 @@
 <main id="portal" class="oculto">
   <header class="barra">
     <div class="marca"><b>Walkmansion</b><i></i></div>
-    <button class="salir" id="btnSalir">Salir</button>
+    <div style="display:flex;align-items:center;gap:4px">
+      <button class="modo" id="btnModo" aria-label="Cambiar entre claro y oscuro"></button>
+      <button class="salir" id="btnSalir">Salir</button>
+    </div>
   </header>
 
   <p class="saludo">Hola,</p>
@@ -203,6 +225,20 @@
 
   <p class="pie" id="pie"></p>
 </main>
+
+<script>
+  // Se aplica ANTES de que cargue nada más: si se hiciera después, el cliente
+  // vería un destello blanco antes de que la página se ponga oscura.
+  // Sin preferencia guardada, se respeta la del teléfono o la computadora.
+  (function () {
+    var guardado = null
+    try { guardado = localStorage.getItem('wm-modo') } catch (e) {}
+    var oscuro = guardado
+      ? guardado === 'oscuro'
+      : window.matchMedia('(prefers-color-scheme: dark)').matches
+    document.documentElement.dataset.modo = oscuro ? 'oscuro' : 'claro'
+  })()
+</script>
 
 <script type="module">
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm'
@@ -314,6 +350,17 @@ $('btnCodigo').addEventListener('click', async () => {
 })
 
 $('codigo').addEventListener('keydown', e => { if (e.key === 'Enter') $('btnCodigo').click() })
+
+const pintarBotonModo = () =>
+  $('btnModo').textContent = document.documentElement.dataset.modo === 'oscuro' ? '☀' : '☾'
+pintarBotonModo()
+
+$('btnModo').addEventListener('click', () => {
+  const nuevo = document.documentElement.dataset.modo === 'oscuro' ? 'claro' : 'oscuro'
+  document.documentElement.dataset.modo = nuevo
+  try { localStorage.setItem('wm-modo', nuevo) } catch (e) {}
+  pintarBotonModo()
+})
 
 $('btnSalir').addEventListener('click', async () => {
   await sb.auth.signOut(); location.reload()
