@@ -40,6 +40,15 @@
   .enviado{background:#31384A;border:1px solid #3A4152;border-radius:10px;padding:16px;
     margin-top:16px;color:#fff;font-size:14px;line-height:1.55;text-align:center}
   .enviado b{color:var(--lima)}
+  .codigo{margin-top:16px;padding-top:16px;border-top:1px solid #3A4152;text-align:left}
+  .codigo label{display:block;font-size:12px;color:#98A0AE;margin-bottom:6px;font-weight:500}
+  .codigo input{width:100%;padding:13px 14px;border:1px solid #3A4152;border-radius:10px;
+    background:#282D3A;color:#fff;font-size:22px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    letter-spacing:.35em;text-align:center}
+  .codigo input:focus{outline:none;border-color:var(--lima)}
+  .codigo button{width:100%;margin-top:10px;padding:12px;border:1px solid var(--lima);border-radius:10px;
+    background:none;color:var(--lima);font-size:14px;font-weight:600;font-family:inherit;cursor:pointer}
+  .codigo button:disabled{opacity:.5;cursor:default}
 
   /* ---------- Portal ---------- */
   #portal{max-width:620px;margin:0 auto;padding:0 16px 56px}
@@ -117,7 +126,15 @@
       </div>
       <button class="principal" id="btnEntrar" type="submit">Enviar mi enlace de acceso</button>
       <div id="errorEntrada"></div>
-      <div id="avisoEnviado" class="enviado oculto"></div>
+      <div id="avisoEnviado" class="enviado oculto">
+        <div id="textoEnviado"></div>
+        <div class="codigo">
+          <label for="codigo">¿No te funcionó el enlace? Escribe el código del correo</label>
+          <input id="codigo" type="text" inputmode="numeric" autocomplete="one-time-code"
+                 maxlength="6" placeholder="······">
+          <button type="button" id="btnCodigo">Entrar con el código</button>
+        </div>
+      </div>
       <!-- Puerta de servicio: solo para las pruebas de Carlos. Se quita antes de dar acceso a clientes. -->
       <button type="button" class="alterno" id="btnAlterno">Entrar con contraseña</button>
     </form>
@@ -242,10 +259,36 @@ $('formEntrada').addEventListener('submit', async e => {
     return
   }
   $('avisoEnviado').classList.remove('oculto')
-  $('avisoEnviado').innerHTML =
-    `Si <b>${correo}</b> está registrado, en unos segundos te llega un enlace.<br>
-     Ábrelo desde este mismo dispositivo. Vence en una hora.`
+  $('textoEnviado').innerHTML =
+    `Si <b>${correo}</b> está registrado, en unos segundos te llega el correo.<br>
+     Trae un enlace y un código. Cualquiera de los dos sirve.`
+  $('codigo').focus()
 })
+
+// El código existe porque el enlace falla más de lo que parece: algunos servicios de
+// correo lo abren por su cuenta para revisarlo y lo gastan, y el navegador que traen
+// dentro las apps de correo a veces no guarda la sesión. El código no se gasta, y
+// permite leer el correo en un aparato y entrar desde otro.
+$('btnCodigo').addEventListener('click', async () => {
+  const token = $('codigo').value.replace(/\D/g, '')
+  if (token.length !== 6) {
+    $('errorEntrada').textContent = 'El código son 6 dígitos.'
+    return
+  }
+  $('btnCodigo').disabled = true
+  $('errorEntrada').textContent = ''
+  const { error } = await sb.auth.verifyOtp({
+    email: $('correo').value.trim(), token, type: 'email'
+  })
+  $('btnCodigo').disabled = false
+  if (error) {
+    $('errorEntrada').textContent = 'Ese código no es válido o ya venció. Pide uno nuevo.'
+    return
+  }
+  esconder('entrada'); mostrar('cargando'); cargar()
+})
+
+$('codigo').addEventListener('keydown', e => { if (e.key === 'Enter') $('btnCodigo').click() })
 
 $('btnSalir').addEventListener('click', async () => {
   await sb.auth.signOut(); location.reload()
