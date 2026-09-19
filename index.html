@@ -43,8 +43,9 @@
   .codigo{margin-top:16px;padding-top:16px;border-top:1px solid #3A4152;text-align:left}
   .codigo label{display:block;font-size:12px;color:#98A0AE;margin-bottom:6px;font-weight:500}
   .codigo input{width:100%;padding:13px 14px;border:1px solid #3A4152;border-radius:10px;
-    background:#282D3A;color:#fff;font-size:22px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
-    letter-spacing:.35em;text-align:center}
+    background:#282D3A;color:#fff;font-size:20px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    letter-spacing:.2em;text-align:center}
+  .codigo input::placeholder{font-size:13px;letter-spacing:0;font-family:var(--fuente);color:#6B7280}
   .codigo input:focus{outline:none;border-color:var(--lima)}
   .codigo button{width:100%;margin-top:10px;padding:12px;border:1px solid var(--lima);border-radius:10px;
     background:none;color:var(--lima);font-size:14px;font-weight:600;font-family:inherit;cursor:pointer}
@@ -129,9 +130,9 @@
       <div id="avisoEnviado" class="enviado oculto">
         <div id="textoEnviado"></div>
         <div class="codigo">
-          <label for="codigo">¿No te funcionó el enlace? Escribe el código del correo</label>
+          <label for="codigo">¿No te funcionó el enlace? Usa el código del correo</label>
           <input id="codigo" type="text" inputmode="numeric" autocomplete="one-time-code"
-                 maxlength="6" placeholder="······">
+                 maxlength="10" placeholder="Pega el código del correo">
           <button type="button" id="btnCodigo">Entrar con el código</button>
         </div>
       </div>
@@ -270,9 +271,13 @@ $('formEntrada').addEventListener('submit', async e => {
 // dentro las apps de correo a veces no guarda la sesión. El código no se gasta, y
 // permite leer el correo en un aparato y entrar desde otro.
 $('btnCodigo').addEventListener('click', async () => {
+  // NO se fija un largo. Supabase puede emitir códigos de 6 u 8 dígitos según su
+  // configuración, y esa configuración puede cambiar. Quien valida el código es
+  // Supabase, no esta página: aquí solo se limpia lo que el cliente pegó.
+  // (El 2026-09-19 esto estaba clavado en 6 y el proyecto mandaba 8. No repetirlo.)
   const token = $('codigo').value.replace(/\D/g, '')
-  if (token.length !== 6) {
-    $('errorEntrada').textContent = 'El código son 6 dígitos.'
+  if (token.length < 4) {
+    $('errorEntrada').textContent = 'Escribe el código completo que viene en el correo.'
     return
   }
   $('btnCodigo').disabled = true
@@ -283,6 +288,7 @@ $('btnCodigo').addEventListener('click', async () => {
   $('btnCodigo').disabled = false
   if (error) {
     $('errorEntrada').textContent = 'Ese código no es válido o ya venció. Pide uno nuevo.'
+    $('codigo').select()
     return
   }
   esconder('entrada'); mostrar('cargando'); cargar()
