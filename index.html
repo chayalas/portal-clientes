@@ -197,6 +197,21 @@
     height:100%;gap:5px;color:var(--tenue);font-size:11px;font-weight:600;text-align:center;padding:8px}
   .fotos .pdf b{font-size:13px;color:var(--texto)}
 
+  /* Visor: la imagen se agranda encima del portal y se cierra. Abrir una pestaña
+     nueva saca al cliente de su portal y en el teléfono lo deja perdido. */
+  #visor{position:fixed;inset:0;z-index:50;background:rgba(23,26,33,.94);
+    display:flex;align-items:center;justify-content:center;padding:20px;
+    animation:aparece .18s ease}
+  @keyframes aparece{from{opacity:0}to{opacity:1}}
+  #visor img{max-width:100%;max-height:calc(100dvh - 130px);border-radius:10px;
+    display:block;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+  #visorPie{position:absolute;bottom:26px;left:0;right:0;text-align:center;
+    color:#C4CBD6;font-size:13px;padding:0 20px}
+  #visorCerrar{position:absolute;top:16px;right:16px;width:42px;height:42px;
+    border-radius:50%;border:0;background:rgba(255,255,255,.14);color:#fff;
+    font-size:22px;line-height:1;cursor:pointer;font-family:inherit}
+  #visorCerrar:hover{background:rgba(255,255,255,.24)}
+
   .doc{display:flex;align-items:center;gap:13px;padding:13px 0;border-bottom:1px solid var(--linea)}
   .doc:last-of-type{border-bottom:0;padding-bottom:0}
   .doc .ico{flex:0 0 38px;height:44px;border:1px solid var(--linea);border-radius:7px;
@@ -258,6 +273,13 @@
 
 <div id="cargando">Cargando…</div>
 
+<!-- Visor de imágenes -->
+<div id="visor" class="oculto">
+  <button id="visorCerrar" aria-label="Cerrar">✕</button>
+  <img id="visorImg" alt="">
+  <div id="visorPie"></div>
+</div>
+
 <!-- ================= MARCO ================= -->
 <div id="marco" class="oculto">
   <header class="barraSup">
@@ -308,6 +330,26 @@ const sumarMeses = (iso, n) => {
   f.setUTCDate(Math.min(d, ult)); return f.toISOString().slice(0,10)
 }
 const esc = t => String(t ?? '').replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]))
+
+// ---------- Visor de imágenes ----------
+// Se abre encima del portal y se cierra con la ✕, con Escape, o tocando el fondo.
+// No se abre pestaña nueva: en el teléfono eso saca al cliente de su portal.
+function abrirVisor(url, pie){
+  $('visorImg').src = url
+  $('visorPie').textContent = pie || ''
+  ver('visor')
+  document.body.style.overflow = 'hidden'
+}
+function cerrarVisor(){
+  esconder('visor')
+  $('visorImg').src = ''
+  document.body.style.overflow = ''
+}
+$('visorCerrar').addEventListener('click', cerrarVisor)
+$('visor').addEventListener('click', e => { if (e.target.id === 'visor') cerrarVisor() })
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && !$('visor').classList.contains('oculto')) cerrarVisor()
+})
 
 // ---------- Modo claro / oscuro ----------
 const pintarModo = () =>
@@ -397,7 +439,8 @@ async function cargar(){
       esquema, cajones_desc, bodega_desc, fecha_firma,
       unidades ( numero, nivel,
         modelos ( id, nombre, recamaras, banos, superficie_m2, construccion_m2, terraza_m2,
-                  precio_lista_actual, precio_lista_fecha_corte ),
+                  precio_lista_actual, precio_lista_fecha_corte,
+                  precio_lista_nivel_base, precio_lista_incremento_nivel ),
         torres ( id, nombre, entrega_estimada, entrega_contrato,
           desarrollos ( nombre, desarrollador ) ) )
     `).single()
@@ -584,7 +627,16 @@ function pintar(cliente, c, pagos, docs, avance, mercado){
   // esta sección NO se dibuja. Ni aproximada, ni con nota al pie. Comparar lo que
   // pagó contra la lista de hoy le regalaría su descuento por forma de pago como
   // si fuera plusvalía — y en esta cartera casi todos traen descuento.
-  const listaAntes = c.precio_lista_al_comprar, listaHoy = m.precio_lista_actual
+  // El precio de lista NO es igual en todos los pisos: en Ícaro sube $25,000 por
+  // nivel. Se guarda un precio base con su nivel y el incremento — una sola edición
+  // mensual sigue moviendo el panel de todos, y cada quien ve el de SU piso.
+  const listaAntes = c.precio_lista_al_comprar
+  let listaHoy = m.precio_lista_actual
+  if (listaHoy != null && m.precio_lista_nivel_base != null
+      && m.precio_lista_incremento_nivel != null && u.nivel != null) {
+    listaHoy = Number(listaHoy)
+      + (u.nivel - m.precio_lista_nivel_base) * Number(m.precio_lista_incremento_nivel)
+  }
   let vistaInversion
   if (listaAntes == null || listaHoy == null) {
     vistaInversion = `<div class="tarjeta"><p class="vacio">
@@ -602,7 +654,8 @@ function pintar(cliente, c, pagos, docs, avance, mercado){
         <small>ya con el descuento de tu forma de pago</small></div>
         <div class="v">${dinero(c.precio_departamento)}</div></div>
       <div class="compara"><div class="k">Precio de lista hoy
-        <small>${m.precio_lista_fecha_corte ? 'al ' + fecha(m.precio_lista_fecha_corte) : ''}</small></div>
+        <small>tu nivel ${u.nivel ?? '—'}${m.precio_lista_fecha_corte
+          ? ' · lista de ' + mesAnio(m.precio_lista_fecha_corte) : ''}</small></div>
         <div class="v">${dinero(listaHoy)}</div></div>
       <div class="resalta">
         <div class="k">Ha subido desde que compraste</div>
@@ -716,10 +769,15 @@ function pintar(cliente, c, pagos, docs, avance, mercado){
         if (!r.data) return ''
         const x = visuales[i], url = r.data.signedUrl
         const esImg = /\.(jpe?g|png|webp|gif|heic)$/i.test(x.nombre)
-        return `<a href="${url}" target="_blank" title="${esc(x.tipo)}">${
-          esImg ? `<img src="${url}" alt="${esc(x.tipo)}" loading="lazy">`
-                : `<div class="pdf"><b>PDF</b>${esc(x.tipo)}</div>`}</a>`
+        // Las imágenes abren en el visor; los PDF sí en pestaña, porque no se
+        // pueden agrandar dentro de la página.
+        return esImg
+          ? `<a href="#" data-img="${url}" data-pie="${esc(x.tipo)}">
+               <img src="${url}" alt="${esc(x.tipo)}" loading="lazy"></a>`
+          : `<a href="${url}" target="_blank" title="${esc(x.tipo)}">
+               <div class="pdf"><b>PDF</b>${esc(x.tipo)}</div></a>`
       }).join('')
+      conectarVisor(cont)
     })
   }
 
@@ -727,8 +785,18 @@ function pintar(cliente, c, pagos, docs, avance, mercado){
     Promise.all(avance.fotos.slice(0,4).map(r => firmar('obra', r, 900))).then(res => {
       const cont = $('fotosObra'); if (!cont) return
       cont.innerHTML = res.filter(r => r.data).map(r =>
-        `<a href="${r.data.signedUrl}" target="_blank">
+        `<a href="#" data-img="${r.data.signedUrl}" data-pie="Avance de obra">
            <img src="${r.data.signedUrl}" alt="Avance de obra" loading="lazy"></a>`).join('')
+      conectarVisor(cont)
+    })
+  }
+
+  function conectarVisor(cont){
+    cont.querySelectorAll('[data-img]').forEach(a => {
+      a.addEventListener('click', e => {
+        e.preventDefault()
+        abrirVisor(a.dataset.img, a.dataset.pie)
+      })
     })
   }
 
