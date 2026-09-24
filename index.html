@@ -593,7 +593,7 @@ function pintar(cliente, c, pagos, docs, avance, mercado){
   // ===== 3. TU UNIDAD =====
   // Los planos y ubicaciones se ven AQUÍ como imágenes, no enterrados en una lista
   // de documentos: son parte de entender qué compraste, no papelería.
-  const VISUALES = ['Plano de tu unidad','Ubicacion de tu unidad','Plano del desarrollo']
+  const VISUALES = ['Plano de tu unidad','Render de tu unidad','Ubicacion de tu unidad','Plano del desarrollo']
   const visuales = docs.filter(x => VISUALES.includes(x.tipo))
   const papeles  = docs.filter(x => !VISUALES.includes(x.tipo))
 
@@ -639,7 +639,9 @@ function pintar(cliente, c, pagos, docs, avance, mercado){
   }
   let vistaInversion
   if (listaAntes == null || listaHoy == null) {
-    vistaInversion = `<div class="tarjeta"><p class="vacio">
+    vistaInversion = `<div class="tarjeta">
+      <div class="etiqueta">Tu departamento hoy</div>
+      <p class="vacio">
       Estamos actualizando el precio de lista de tu modelo con el desarrollador.
       En cuanto lo tengamos verás aquí cómo se compara contra lo que pagaste.</p></div>`
   } else {
@@ -672,7 +674,9 @@ function pintar(cliente, c, pagos, docs, avance, mercado){
   // ===== 5. CONTRA LO NUEVO TERMINADO =====
   let vistaMercado
   if (!mercado || (mercado.comparable_min == null && mercado.comparable_max == null)) {
-    vistaMercado = `<div class="tarjeta"><p class="vacio">
+    vistaMercado = `<div class="tarjeta">
+      <div class="etiqueta">Contra lo que hay en tu zona</div>
+      <p class="vacio">
       Estamos levantando los precios de departamentos similares ya terminados en tu zona.
       Aparecerán aquí en cuanto cerremos el corte.</p></div>`
   } else {
@@ -707,12 +711,14 @@ function pintar(cliente, c, pagos, docs, avance, mercado){
     </div>`
 
   // ---------- Menú y vistas ----------
+  // «Mercado» es una sola pregunta —cómo está mi depa contra lo que hay afuera— contestada
+  // desde dos lados: la lista del propio desarrollo y lo comparable de la zona. Separarlas
+  // dejaba dos entradas de menú seguidas hablando de precio, y el menú ya se sentía largo.
   const VISTAS = [
     ['pagos',      'Tus pagos',        vistaPagos],
-    ['obra',       'Tu obra',          vistaObra],
+    ['obra',       'Avance de obra',   vistaObra],
     ['unidad',     'Tu unidad',        vistaUnidad],
-    ['inversion',  'Tu inversión',     vistaInversion],
-    ['mercado',    'Contra lo nuevo',  vistaMercado],
+    ['mercado',    'Mercado',          vistaInversion + vistaMercado],
     ['documentos', 'Documentos',       vistaDocs],
   ]
 
