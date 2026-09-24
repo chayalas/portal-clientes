@@ -137,7 +137,19 @@
   .doc .ver:disabled{opacity:.5;cursor:default}
   .vacio{color:var(--tenue);font-size:14px;line-height:1.55}
 
+  .avanceCifra{display:flex;align-items:baseline;gap:9px;margin-bottom:2px}
+  .avanceCifra b{font-size:38px;font-weight:700;letter-spacing:-.03em;line-height:1}
+  .avanceCifra span{font-size:14px;color:var(--tenue)}
   .etapa{font-size:22px;font-weight:700;letter-spacing:-.02em;margin-bottom:3px}
+  .trabajos{margin-top:16px;border-top:1px solid var(--linea);padding-top:4px}
+  .trabajo{display:flex;gap:12px;padding:9px 0;font-size:14px;align-items:baseline}
+  .trabajo .pisos{flex:0 0 74px;font-size:12px;color:var(--tenue2);font-weight:600}
+  .trabajo.tuyo{margin:4px -10px;padding:9px 10px;background:var(--suave);border-radius:9px}
+  .trabajo.tuyo .pisos{color:var(--texto)}
+  .trabajo.tuyo .que{font-weight:600}
+  .tupiso{display:inline-block;background:var(--lima);color:var(--navy);font-size:10px;
+    font-weight:700;padding:2px 7px;border-radius:99px;margin-left:8px;letter-spacing:.02em;
+    vertical-align:middle}
   .etapas{display:flex;gap:6px;margin:16px 0 10px}
   .etapas div{flex:1;text-align:center}
   .etapas .marca{height:6px;border-radius:99px;background:var(--pista)}
@@ -279,6 +291,10 @@ const dineroCorto = n => '$' + Number(n).toLocaleString('es-MX',{maximumFraction
 const fecha = s => { if(!s) return '—'
   const [a,m,d] = s.split('-').map(Number)
   return `${d} de ${MESES[m-1]} de ${a}` }
+// Un avance de obra es una foto del mes, no de un dia: se muestra sin dia.
+const mesAnio = s => { if(!s) return '—'
+  const [a,m] = s.split('-').map(Number)
+  return `${MESES[m-1]} de ${a}` }
 const fechaCorta = s => { if(!s) return '—'
   const [a,m,d] = s.split('-').map(Number)
   return `${d} ${MESES[m-1].slice(0,3)} ${a}` }
@@ -567,13 +583,39 @@ function pintar(cliente, c, pagos, docs, avance){
             : 'Ya solicitamos la actualización.'}</div>`
       : ''
 
+    // El porcentaje va como número grande + barra, no como dona ni gráfica:
+    // es un solo valor contra un total, sin categorías que comparar. Y usa la
+    // misma barra que "lo que llevas pagado", para que el portal hable un solo
+    // idioma visual. El % solo no dice mucho — por eso va junto a la etapa.
+    const cifra = avance.porcentaje != null
+      ? `<div class="avanceCifra"><b>${avance.porcentaje}%</b><span>de avance</span></div>
+         <div class="barra" style="margin-bottom:14px">
+           <span style="width:${Math.min(100, avance.porcentaje)}%"></span></div>`
+      : ''
+
+    // Los trabajos vienen por rango de pisos ("5-12 | tablaroca"). Como el portal
+    // sabe en qué nivel está este cliente, le marca SU renglón. Es la diferencia
+    // entre leer un reporte de la torre y ver cómo va tu departamento.
+    const miNivel = u.nivel
+    const lineas = (avance.descripcion || '').split('\n').filter(Boolean)
+    const trabajos = lineas.length ? `<div class="trabajos">` + lineas.map(l => {
+      const m = l.match(/^\s*(\d+)\s*-\s*(\d+)\s*\|\s*(.+)$/)
+      if (!m) return `<div class="trabajo"><div class="que">${l}</div></div>`
+      const [, desde, hasta, que] = m
+      const esMio = miNivel != null && miNivel >= +desde && miNivel <= +hasta
+      return `<div class="trabajo${esMio ? ' tuyo' : ''}">
+                <div class="pisos">Pisos ${desde}–${hasta}</div>
+                <div class="que">${que}${esMio ? '<span class="tupiso">TU PISO</span>' : ''}</div>
+              </div>`
+    }).join('') + `</div>` : ''
+
     $('obra').innerHTML = `
-      <div class="etapa">${avance.etapa || 'En construcción'}${
-        avance.porcentaje ? ` · ${avance.porcentaje}%` : ''}</div>
-      <div class="cuando" style="font-size:13px;color:var(--tenue)">
-        Reportado por el desarrollador el ${fecha(avance.fecha)}</div>
+      ${cifra}
+      <div class="etapa">${avance.etapa || 'En construcción'}</div>
+      <div style="font-size:13px;color:var(--tenue)">
+        Reportado por el desarrollador en ${mesAnio(avance.fecha)}</div>
       <div class="etapas">${tramos}</div>
-      ${avance.descripcion ? `<p style="font-size:14px;line-height:1.6;margin-top:6px">${avance.descripcion}</p>` : ''}
+      ${trabajos}
       <div class="fotos" id="fotosObra"></div>
       ${aviso}`
 
