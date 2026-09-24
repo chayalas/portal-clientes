@@ -442,7 +442,7 @@ async function cargar(){
                   precio_lista_actual, precio_lista_fecha_corte,
                   precio_lista_nivel_base, precio_lista_incremento_nivel ),
         torres ( id, nombre, entrega_estimada, entrega_contrato,
-          desarrollos ( nombre, desarrollador ) ) )
+          desarrollos ( nombre, desarrollador, zona ) ) )
     `).single()
 
   $('nombre').textContent = cliente?.nombre || ''
@@ -454,23 +454,25 @@ async function cargar(){
     return
   }
 
-  const [{ data: pagos }, { data: docs }, { data: avances }, { data: mercado }] = await Promise.all([
+  const [{ data: pagos }, { data: docs }, { data: avances }, { data: zonas }] = await Promise.all([
     sb.from('pagos').select('fecha, concepto, monto, forma_pago, banco_parcial, num_recibo')
       .order('fecha', { ascending: true }),
     sb.from('documentos').select('tipo, nombre, storage_path').order('tipo'),
     sb.from('avances_obra')
       .select('fecha, fecha_pedido, porcentaje, etapa, descripcion, fotos')
       .eq('torre_id', compra.unidades.torres.id).order('fecha', { ascending: false }).limit(1),
-    sb.from('mercado')
-      .select('renta_similares, renta_corta_estancia, comparable_min, comparable_max, fecha_corte, nota')
-      .eq('modelo_id', compra.unidades.modelos.id).order('fecha_corte', { ascending: false }).limit(1)
+    // El mercado de la zona es el MISMO para todos los clientes de ese desarrollo.
+    // Se guarda una vez por zona y sirve a todos: es la regla de arquitectura del proyecto.
+    sb.from('zonas_mercado')
+      .select('zona, nuevo_pesos_m2, existente_pesos_m2, prima_nuevo_pct, renta_1rec, renta_2rec, renta_3rec, fecha_corte, fuente')
+      .eq('zona', compra.unidades.torres.desarrollos.zona || '').limit(1)
   ])
 
-  pintar(cliente, compra, pagos || [], docs || [], (avances || [])[0] || null, (mercado || [])[0] || null)
+  pintar(cliente, compra, pagos || [], docs || [], (avances || [])[0] || null, (zonas || [])[0] || null)
 }
 
 // ---------- Pintado ----------
-function pintar(cliente, c, pagos, docs, avance, mercado){
+function pintar(cliente, c, pagos, docs, avance, zona){
   const u = c.unidades, m = u.modelos, t = u.torres, d = t.desarrollos
 
   // ===== 1. PAGOS =====
@@ -671,29 +673,92 @@ function pintar(cliente, c, pagos, docs, avance, mercado){
     </div>`
   }
 
-  // ===== 5. CONTRA LO NUEVO TERMINADO =====
+  // ===== 5. CONTRA LO QUE HAY EN LA ZONA =====
+  // El encuadre lo fija la bitácora del 2026-09-08 y el comparativo de Daniella:
+  //
+  //   1. Base de medición ÚNICA: precio final pagado (ya con descuento, cajón incluido)
+  //      entre m² TOTALES, terraza incluida. Es como vienen las cotizaciones y es la
+  //      lectura que el propio estudio declara en su página 5. Cerró C-23.
+  //   2. No se dice «estás bajo mercado». Se dice contra QUÉ, porque la zona tiene dos
+  //      precios distintos: lo ya entregado y lo que se vende sin estrenar.
+  //   3. Se pone al frente el número incómodo —el metro propio contra lo ya entregado—
+  //      y se contesta con la prima de obra nueva de la zona. Evadirlo destruye
+  //      credibilidad; decirlo con el número la construye.
+  //
+  // Un cliente con el portal abierto se va a comparar contra los anuncios que encuentre,
+  // que son de producto EXISTENTE. Esta tarjeta le gana esa conversación de frente.
+  const supTotal = Number(m.superficie_m2) || null
+  const miM2 = (supTotal && c.precio_departamento)
+    ? Number(c.precio_departamento) / supTotal : null
+
   let vistaMercado
-  if (!mercado || (mercado.comparable_min == null && mercado.comparable_max == null)) {
+  if (!zona || zona.existente_pesos_m2 == null || zona.nuevo_pesos_m2 == null || miM2 == null) {
     vistaMercado = `<div class="tarjeta">
       <div class="etiqueta">Contra lo que hay en tu zona</div>
-      <p class="vacio">
-      Estamos levantando los precios de departamentos similares ya terminados en tu zona.
+      <p class="vacio">Estamos levantando los precios de departamentos comparables en tu zona.
       Aparecerán aquí en cuanto cerremos el corte.</p></div>`
   } else {
+    const existente = Number(zona.existente_pesos_m2)
+    const nuevoZona = Number(zona.nuevo_pesos_m2)
+    const prima     = zona.prima_nuevo_pct != null
+      ? Number(zona.prima_nuevo_pct)
+      : (nuevoZona / existente - 1) * 100
+    const sobreExistente = (miM2 / existente - 1) * 100
+    const sobreNuevo     = (miM2 / nuevoZona - 1) * 100
+    const dentro = sobreExistente <= prima
+
+    // La renta de referencia depende de cuántas recámaras tiene SU departamento.
+    const rentaZona = m.recamaras === 1 ? zona.renta_1rec
+                    : m.recamaras === 2 ? zona.renta_2rec
+                    : m.recamaras >= 3  ? zona.renta_3rec : null
+
+    const pct = n => (n >= 0 ? '+' : '−') + Math.abs(n).toFixed(1) + '%'
+    const porM2 = n => dinero(Math.round(n)).replace('.00','') + ' /m²'
+
     vistaMercado = `<div class="tarjeta">
-      <div class="etiqueta">Departamentos similares ya terminados, en tu zona</div>
-      <div class="compara"><div class="k">Rango de precios
-        <small>entregados, similares al tuyo</small></div>
-        <div class="v">${dinero(mercado.comparable_min)} – ${dinero(mercado.comparable_max)}</div></div>
-      <div class="compara"><div class="k">Lo que pagaste tú
-        <small>en preventa</small></div>
-        <div class="v">${dinero(c.precio_departamento)}</div></div>
-      ${mercado.renta_similares ? `<div class="compara"><div class="k">Renta de similares
-        <small>referencia mensual</small></div>
-        <div class="v">${dinero(mercado.renta_similares)}</div></div>` : ''}
-      ${mercado.nota ? `<p style="font-size:13px;color:var(--tenue);margin-top:12px">${esc(mercado.nota)}</p>` : ''}
-      <div class="corte">Información al ${fecha(mercado.fecha_corte)}
-        · levantamiento propio de Walkmansion</div>
+      <div class="etiqueta">Contra lo que hay en tu zona</div>
+
+      <div class="compara"><div class="k">Tu departamento
+        <small>lo que pagaste entre tus ${supTotal} m² totales, cajón incluido</small></div>
+        <div class="v">${porM2(miM2)}</div></div>
+
+      <div class="compara"><div class="k">Departamentos ya entregados
+        <small>lo que se ofrece hoy en ${esc(zona.zona)}, producto existente</small></div>
+        <div class="v">${porM2(existente)}</div></div>
+
+      <div class="compara"><div class="k">Departamentos sin estrenar
+        <small>obra nueva en ${esc(zona.zona)}</small></div>
+        <div class="v">${porM2(nuevoZona)}</div></div>
+
+      <div class="resalta">
+        <div class="k">Tu metro contra lo ya entregado</div>
+        <div class="v">${pct(sobreExistente)}</div>
+      </div>
+
+      <p style="font-size:14px;line-height:1.55;margin-top:14px">
+        Es la comparación que vas a encontrar si buscas anuncios: casi todo lo publicado
+        es producto ya entregado. <b>En ${esc(zona.zona)} un departamento sin estrenar se
+        paga ${prima.toFixed(0)}% más caro que uno ya entregado</b> — por garantía, por
+        instalaciones nuevas y por los años de vida que le quedan al edificio.
+        ${dentro
+          ? `Tu departamento está ${pct(sobreExistente)} arriba de lo entregado:
+             <b>dentro de esa diferencia, no encima de ella.</b>`
+          : `Tu departamento está ${pct(sobreExistente)} arriba de lo entregado,
+             <b>por encima de esa diferencia.</b> Lo que lo sostiene es lo que tiene tu
+             unidad en particular —nivel, vista, terraza, amenidades— y eso se mide
+             departamento por departamento, no con la mediana de la colonia.`}
+        Contra la obra nueva de tu zona estás ${pct(sobreNuevo)}.
+      </p>
+
+      ${rentaZona ? `<div class="compara" style="margin-top:16px">
+        <div class="k">Renta de un ${m.recamaras} recámara${m.recamaras > 1 ? 's' : ''} en tu zona
+          <small>mediana de lo publicado, para cuando lo quieras rentar</small></div>
+        <div class="v">${dinero(rentaZona).replace('.00','')} al mes</div></div>` : ''}
+
+      <div class="corte">Medianas de 1,022 departamentos publicados en 154 colonias de
+        Guadalajara${zona.fecha_corte ? ' · corte de ' + mesAnio(zona.fecha_corte) : ''}${
+        zona.fuente ? ' · ' + esc(zona.fuente) : ''}.
+        Son precios de lista publicados, no de operaciones cerradas.</div>
     </div>`
   }
 
