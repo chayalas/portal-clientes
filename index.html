@@ -4,17 +4,28 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Portal de clientes · Walkmansion</title>
+
+<script>
+  // Antes que nada, para que no haya destello blanco al abrir en oscuro.
+  (function () {
+    var g = null
+    try { g = localStorage.getItem('wm-modo') } catch (e) {}
+    var oscuro = g ? g === 'oscuro' : window.matchMedia('(prefers-color-scheme: dark)').matches
+    document.documentElement.dataset.modo = oscuro ? 'oscuro' : 'claro'
+  })()
+</script>
+
 <style>
-  /* La marca no cambia entre modos: azul pizarra y verde lima. Lo que cambia son
-     los fondos y los textos. Todo pasa por estas variables — ningún color se
-     escribe suelto más abajo, para que agregar un modo nuevo no sea una cacería. */
+  /* La marca no cambia entre modos: azul pizarra y verde lima. Cambian fondos y
+     textos. Ningún color se escribe suelto más abajo — todo pasa por aquí. */
   :root{
     --navy:#282D3A; --lima:#D0FB57;
-    --fondo:#F6F7F8; --tarjeta:#ffffff; --linea:#E3E6EA;
+    --fondo:#F6F7F8; --tarjeta:#fff; --linea:#E3E6EA;
     --texto:#282D3A; --tenue:#6B7280; --tenue2:#9AA1AC;
     --hero-bg:#282D3A; --hero-linea:#3A4152; --hero-texto:#B7BECB; --hero-tenue:#8A93A2;
     --suave:#F4F6F8; --pista:#EDF0F3; --relleno:#282D3A;
     --aviso-bg:#FEF3C7; --aviso-texto:#B45309;
+    --sombra:0 1px 2px rgba(40,45,58,.04), 0 4px 14px rgba(40,45,58,.05);
     --radio:14px;
     --fuente:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   }
@@ -24,24 +35,24 @@
     --hero-bg:#2E3442; --hero-linea:#434B5C; --hero-texto:#C4CBD6; --hero-tenue:#8F98A6;
     --suave:#2A2F3B; --pista:#333A48; --relleno:#D0FB57;
     --aviso-bg:#3A2F14; --aviso-texto:#F3C969;
+    --sombra:0 1px 2px rgba(0,0,0,.25), 0 4px 14px rgba(0,0,0,.2);
     color-scheme:dark;
   }
-  html[data-modo="oscuro"] .barra span{background:var(--lima)}
-  html[data-modo="oscuro"] .hero .monto{color:#fff}
   *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:var(--fuente);background:var(--fondo);color:var(--texto);transition:background .2s,color .2s;
-       -webkit-font-smoothing:antialiased;line-height:1.5}
+  body{font-family:var(--fuente);background:var(--fondo);color:var(--texto);line-height:1.5;
+       -webkit-font-smoothing:antialiased;transition:background .2s,color .2s}
   .oculto{display:none!important}
 
-  /* ---------- Entrada ---------- */
-  #entrada{min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:24px;background:var(--navy)}
+  /* ---------------- Entrada ---------------- */
+  #entrada{min-height:100dvh;display:flex;align-items:center;justify-content:center;
+    padding:24px;background:var(--navy)}
   .caja{width:100%;max-width:380px}
-  .marca{display:flex;align-items:baseline;gap:2px;margin-bottom:28px;justify-content:center}
+  .marca{display:flex;align-items:baseline;gap:2px;justify-content:center;margin-bottom:28px}
   .marca b{color:#fff;font-size:22px;font-weight:700;letter-spacing:-.02em}
   .marca i{display:inline-block;width:9px;height:22px;background:var(--lima);
-           transform:skewX(-18deg);margin:0 3px}
-  .caja h1{color:#fff;font-size:19px;font-weight:600;margin-bottom:4px;text-align:center}
-  .caja p.sub{color:#98A0AE;font-size:14px;margin-bottom:24px;text-align:center}
+    transform:skewX(-18deg);margin:0 3px}
+  .caja h1{color:#fff;font-size:19px;font-weight:600;text-align:center;margin-bottom:4px}
+  .caja p.sub{color:#98A0AE;font-size:14px;text-align:center;margin-bottom:24px}
   .campo{margin-bottom:12px}
   .campo label{display:block;font-size:12px;color:#98A0AE;margin-bottom:6px;font-weight:500}
   .campo input{width:100%;padding:13px 14px;border:1px solid #3A4152;border-radius:10px;
@@ -59,75 +70,138 @@
   .codigo{margin-top:16px;padding-top:16px;border-top:1px solid #3A4152;text-align:left}
   .codigo label{display:block;font-size:12px;color:#98A0AE;margin-bottom:6px;font-weight:500}
   .codigo input{width:100%;padding:13px 14px;border:1px solid #3A4152;border-radius:10px;
-    background:#282D3A;color:#fff;font-size:20px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
-    letter-spacing:.2em;text-align:center}
+    background:#282D3A;color:#fff;font-size:20px;text-align:center;letter-spacing:.2em;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
   .codigo input::placeholder{font-size:13px;letter-spacing:0;font-family:var(--fuente);color:#6B7280}
   .codigo input:focus{outline:none;border-color:var(--lima)}
-  .codigo button{width:100%;margin-top:10px;padding:12px;border:1px solid var(--lima);border-radius:10px;
-    background:none;color:var(--lima);font-size:14px;font-weight:600;font-family:inherit;cursor:pointer}
+  .codigo button{width:100%;margin-top:10px;padding:12px;border:1px solid var(--lima);
+    border-radius:10px;background:none;color:var(--lima);font-size:14px;font-weight:600;
+    font-family:inherit;cursor:pointer}
   .codigo button:disabled{opacity:.5;cursor:default}
 
-  /* ---------- Portal ---------- */
-  #portal{max-width:620px;margin:0 auto;padding:0 16px 56px}
-  header.barra{display:flex;align-items:center;justify-content:space-between;
-    padding:18px 0 22px;border-bottom:1px solid var(--linea);margin-bottom:24px}
-  header.barra .marca{margin:0}
-  header.barra .marca b{color:var(--navy);font-size:17px}
-  header.barra .marca i{height:17px;width:7px}
-  .modo{background:none;border:0;color:var(--tenue);font-size:15px;cursor:pointer;
-    padding:6px 8px;border-radius:8px;line-height:1}
-  .modo:hover{background:var(--suave)}
-  .salir{background:none;border:0;color:var(--tenue);font-size:13px;cursor:pointer;font-family:inherit;padding:6px}
+  /* ---------------- Marco ---------------- */
+  #cargando{padding:90px 20px;text-align:center;color:var(--tenue)}
+  .barraSup{position:sticky;top:0;z-index:20;background:var(--fondo);
+    border-bottom:1px solid var(--linea)}
+  .barraSup .fila{max-width:1000px;margin:0 auto;padding:15px 16px;
+    display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .barraSup .marca{margin:0}
+  .barraSup .marca b{color:var(--texto);font-size:17px}
+  .barraSup .marca i{height:17px;width:7px}
+  .acciones{display:flex;align-items:center;gap:2px}
+  .modo,.salir{background:none;border:0;color:var(--tenue);font-family:inherit;cursor:pointer;
+    padding:7px 9px;border-radius:8px;line-height:1}
+  .modo{font-size:15px}
+  .salir{font-size:13px}
+  .modo:hover,.salir:hover{background:var(--suave)}
 
-  .saludo{font-size:13px;color:var(--tenue);margin-bottom:2px}
-  .nombre{font-size:23px;font-weight:700;letter-spacing:-.02em;margin-bottom:20px}
+  /* Menú: en teléfono es una tira horizontal; en pantalla ancha, columna lateral */
+  .menu{max-width:1000px;margin:0 auto;padding:0 16px 12px;display:flex;gap:6px;
+    overflow-x:auto;scrollbar-width:none}
+  .menu::-webkit-scrollbar{display:none}
+  .menu button{flex:0 0 auto;background:none;border:1px solid transparent;border-radius:99px;
+    padding:8px 14px;font-size:13.5px;font-weight:600;color:var(--tenue);
+    font-family:inherit;cursor:pointer;white-space:nowrap}
+  .menu button:hover{background:var(--suave)}
+  .menu button[aria-current="true"]{background:var(--navy);color:#fff}
+  html[data-modo="oscuro"] .menu button[aria-current="true"]{background:var(--lima);color:var(--navy)}
 
+  #portal{max-width:1000px;margin:0 auto;padding:18px 16px 60px}
+  .saludo{font-size:13px;color:var(--tenue)}
+  .nombre{font-size:23px;font-weight:700;letter-spacing:-.02em;margin-bottom:18px}
+  .vista{animation:entra .22s ease}
+  @keyframes entra{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .tituloVista{font-size:12px;text-transform:uppercase;letter-spacing:.09em;
+    color:var(--tenue2);font-weight:700;margin-bottom:12px}
+
+  @media (min-width:900px){
+    .menu{position:fixed;left:max(16px,calc(50vw - 500px));top:150px;width:190px;
+      flex-direction:column;padding:0;gap:3px;overflow:visible}
+    .menu button{text-align:left;width:100%;border-radius:10px;padding:10px 13px}
+    #portal{padding-left:222px}
+    .barraSup{border-bottom:0}
+  }
+
+  /* ---------------- Piezas ---------------- */
   .tarjeta{background:var(--tarjeta);border:1px solid var(--linea);border-radius:var(--radio);
-    padding:18px;margin-bottom:14px}
+    padding:18px;margin-bottom:14px;box-shadow:var(--sombra)}
   .etiqueta{font-size:11px;text-transform:uppercase;letter-spacing:.09em;
     color:var(--tenue2);font-weight:600;margin-bottom:10px}
-  .corte{font-size:11px;color:var(--tenue2);margin-top:12px;padding-top:10px;border-top:1px solid var(--linea)}
+  .corte{font-size:11px;color:var(--tenue2);margin-top:12px;padding-top:10px;
+    border-top:1px solid var(--linea)}
+  .vacio{color:var(--tenue);font-size:14px;line-height:1.6}
 
-  /* Bloque principal */
-  .hero{background:var(--hero-bg);border-radius:var(--radio);padding:22px;margin-bottom:14px;color:#fff}
+  .hero{background:var(--hero-bg);border-radius:var(--radio);padding:22px;margin-bottom:14px;
+    color:#fff;box-shadow:var(--sombra)}
   .hero .etiqueta{color:var(--lima);margin-bottom:8px}
   .hero .monto{font-size:36px;font-weight:700;letter-spacing:-.03em;line-height:1.1}
   .hero .cuando{font-size:15px;color:var(--hero-texto);margin-top:6px}
-  .hero .nota{font-size:12px;color:var(--hero-tenue);margin-top:14px;padding-top:12px;border-top:1px solid var(--hero-linea)}
+  .hero .nota{font-size:12px;color:var(--hero-tenue);margin-top:14px;padding-top:12px;
+    border-top:1px solid var(--hero-linea)}
 
-  /* Aportado */
   .cifras{display:flex;gap:12px;flex-wrap:wrap}
   .cifra{flex:1;min-width:130px}
   .cifra .v{font-size:22px;font-weight:700;letter-spacing:-.02em}
   .cifra .k{font-size:12px;color:var(--tenue);margin-top:2px}
   .barra{height:7px;background:var(--pista);border-radius:99px;overflow:hidden;margin-top:14px}
-  .barra span{display:block;height:100%;background:var(--relleno);border-radius:99px}
+  .barra span{display:block;height:100%;background:var(--relleno);border-radius:99px;
+    transition:width .5s ease}
+  .preliminar{display:inline-block;background:var(--aviso-bg);color:var(--aviso-texto);
+    font-size:11px;font-weight:600;padding:4px 9px;border-radius:99px;margin-top:12px}
 
-  .preliminar{display:inline-block;background:var(--aviso-bg);color:var(--aviso-texto);font-size:11px;
-    font-weight:600;padding:4px 9px;border-radius:99px;margin-top:12px}
-
-  /* Unidad */
   .datos{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px}
   .datos div span{display:block;font-size:11px;color:var(--tenue2);margin-bottom:1px}
   .datos div b{font-size:14px;font-weight:600}
 
-  /* Movimientos */
-  .mov{display:flex;justify-content:space-between;gap:12px;padding:13px 0;border-bottom:1px solid var(--linea)}
+  .mov{display:flex;justify-content:space-between;gap:12px;padding:13px 0;
+    border-bottom:1px solid var(--linea)}
   .mov:last-of-type{border-bottom:0;padding-bottom:0}
   .mov .izq .c{font-size:14px;font-weight:600}
   .mov .izq .d{font-size:12px;color:var(--tenue);margin-top:2px}
   .mov .der{text-align:right;white-space:nowrap}
   .mov .der .m{font-size:14px;font-weight:600}
   .mov .der .r{font-size:11px;color:var(--tenue2);margin-top:2px}
-
-  .masmov{width:100%;margin-top:14px;padding:11px;background:var(--suave);border:1px solid var(--linea);
-    border-radius:10px;color:var(--texto);font-size:13px;font-weight:600;font-family:inherit;cursor:pointer}
+  .masmov{width:100%;margin-top:14px;padding:11px;background:var(--suave);
+    border:1px solid var(--linea);border-radius:10px;color:var(--texto);
+    font-size:13px;font-weight:600;font-family:inherit;cursor:pointer}
   .masmov:hover{background:var(--pista)}
+
+  .avanceCifra{display:flex;align-items:baseline;gap:9px;margin-bottom:2px}
+  .avanceCifra b{font-size:38px;font-weight:700;letter-spacing:-.03em;line-height:1}
+  .avanceCifra span{font-size:14px;color:var(--tenue)}
+  .etapa{font-size:22px;font-weight:700;letter-spacing:-.02em;margin-bottom:3px}
+  .etapas{display:flex;gap:6px;margin:16px 0 10px}
+  .etapas div{flex:1;text-align:center}
+  .etapas .marca2{height:6px;border-radius:99px;background:var(--pista)}
+  .etapas .hecha .marca2{background:var(--relleno)}
+  .etapas .ahora .marca2{background:var(--lima)}
+  .etapas span{display:block;font-size:11px;color:var(--tenue2);margin-top:7px}
+  .etapas .ahora span{color:var(--texto);font-weight:700}
+  .etapas .hecha span{color:var(--tenue)}
+  .trabajos{margin-top:16px;border-top:1px solid var(--linea);padding-top:4px}
+  .trabajo{display:flex;gap:12px;padding:9px 0;font-size:14px;align-items:baseline}
+  .trabajo .pisos{flex:0 0 78px;font-size:12px;color:var(--tenue2);font-weight:600}
+  .trabajo.tuyo{margin:4px -10px;padding:9px 10px;background:var(--suave);border-radius:9px}
+  .trabajo.tuyo .pisos{color:var(--texto)}
+  .trabajo.tuyo .que{font-weight:600}
+  .tupiso{display:inline-block;background:var(--lima);color:var(--navy);font-size:10px;
+    font-weight:700;padding:2px 7px;border-radius:99px;margin-left:8px;letter-spacing:.02em}
+  .viejo{background:var(--aviso-bg);color:var(--aviso-texto);font-size:12.5px;line-height:1.55;
+    padding:11px 13px;border-radius:9px;margin-top:14px}
+
+  .fotos{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-top:16px}
+  .fotos a{display:block;aspect-ratio:4/3;border-radius:9px;overflow:hidden;
+    border:1px solid var(--linea);background:var(--suave)}
+  .fotos img{width:100%;height:100%;object-fit:cover;display:block}
+  .fotos .pdf{display:flex;flex-direction:column;align-items:center;justify-content:center;
+    height:100%;gap:5px;color:var(--tenue);font-size:11px;font-weight:600;text-align:center;padding:8px}
+  .fotos .pdf b{font-size:13px;color:var(--texto)}
+
   .doc{display:flex;align-items:center;gap:13px;padding:13px 0;border-bottom:1px solid var(--linea)}
   .doc:last-of-type{border-bottom:0;padding-bottom:0}
   .doc .ico{flex:0 0 38px;height:44px;border:1px solid var(--linea);border-radius:7px;
     display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;
-    color:var(--tenue);background:var(--suave);letter-spacing:.03em}
+    color:var(--tenue);background:var(--suave)}
   .doc .txt{flex:1;min-width:0}
   .doc .txt .n{font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .doc .txt .t{font-size:12px;color:var(--tenue);margin-top:2px}
@@ -135,41 +209,22 @@
     padding:8px 14px;font-size:13px;font-weight:600;color:var(--texto);font-family:inherit;cursor:pointer}
   .doc .ver:hover{background:var(--suave)}
   .doc .ver:disabled{opacity:.5;cursor:default}
-  .vacio{color:var(--tenue);font-size:14px;line-height:1.55}
 
-  .avanceCifra{display:flex;align-items:baseline;gap:9px;margin-bottom:2px}
-  .avanceCifra b{font-size:38px;font-weight:700;letter-spacing:-.03em;line-height:1}
-  .avanceCifra span{font-size:14px;color:var(--tenue)}
-  .etapa{font-size:22px;font-weight:700;letter-spacing:-.02em;margin-bottom:3px}
-  .trabajos{margin-top:16px;border-top:1px solid var(--linea);padding-top:4px}
-  .trabajo{display:flex;gap:12px;padding:9px 0;font-size:14px;align-items:baseline}
-  .trabajo .pisos{flex:0 0 74px;font-size:12px;color:var(--tenue2);font-weight:600}
-  .trabajo.tuyo{margin:4px -10px;padding:9px 10px;background:var(--suave);border-radius:9px}
-  .trabajo.tuyo .pisos{color:var(--texto)}
-  .trabajo.tuyo .que{font-weight:600}
-  .tupiso{display:inline-block;background:var(--lima);color:var(--navy);font-size:10px;
-    font-weight:700;padding:2px 7px;border-radius:99px;margin-left:8px;letter-spacing:.02em;
-    vertical-align:middle}
-  .etapas{display:flex;gap:6px;margin:16px 0 10px}
-  .etapas div{flex:1;text-align:center}
-  .etapas .marca{height:6px;border-radius:99px;background:var(--pista)}
-  .etapas .hecha .marca{background:var(--relleno)}
-  .etapas .ahora .marca{background:var(--lima)}
-  .etapas span{display:block;font-size:11px;color:var(--tenue2);margin-top:7px}
-  .etapas .ahora span{color:var(--texto);font-weight:700}
-  .etapas .hecha span{color:var(--tenue)}
-  .fotos{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-top:16px}
-  .fotos a{display:block;aspect-ratio:4/3;border-radius:9px;overflow:hidden;border:1px solid var(--linea);background:var(--suave)}
-  .fotos img{width:100%;height:100%;object-fit:cover;display:block}
-  .viejo{background:var(--aviso-bg);color:var(--aviso-texto);font-size:12.5px;line-height:1.55;
-    padding:11px 13px;border-radius:9px;margin-top:14px}
+  .compara{display:flex;justify-content:space-between;align-items:baseline;gap:12px;
+    padding:13px 0;border-bottom:1px solid var(--linea)}
+  .compara:last-of-type{border-bottom:0}
+  .compara .k{font-size:14px}
+  .compara .k small{display:block;font-size:11.5px;color:var(--tenue2);margin-top:2px}
+  .compara .v{font-size:17px;font-weight:700;white-space:nowrap}
+  .resalta{background:var(--suave);border-radius:10px;padding:14px;margin-top:14px}
+  .resalta .k{font-size:13px;color:var(--tenue)}
+  .resalta .v{font-size:26px;font-weight:700;letter-spacing:-.02em;margin-top:2px}
   .pie{font-size:12px;color:var(--tenue2);text-align:center;margin-top:26px;line-height:1.6}
-  #cargando{padding:80px 20px;text-align:center;color:var(--tenue)}
 </style>
 </head>
 <body>
 
-<!-- ============ ENTRADA ============ -->
+<!-- ================= ENTRADA ================= -->
 <section id="entrada" class="oculto">
   <div class="caja">
     <div class="marca"><b>Walkmansion</b><i></i></div>
@@ -195,7 +250,7 @@
           <button type="button" id="btnCodigo">Entrar con el código</button>
         </div>
       </div>
-      <!-- Puerta de servicio: solo para las pruebas de Carlos. Se quita antes de dar acceso a clientes. -->
+      <!-- Puerta de servicio: pruebas de Carlos. Se quita antes de dar acceso a clientes. -->
       <button type="button" class="alterno" id="btnAlterno">Entrar con contraseña</button>
     </form>
   </div>
@@ -203,75 +258,26 @@
 
 <div id="cargando">Cargando…</div>
 
-<!-- ============ PORTAL ============ -->
-<main id="portal" class="oculto">
-  <header class="barra">
-    <div class="marca"><b>Walkmansion</b><i></i></div>
-    <div style="display:flex;align-items:center;gap:4px">
-      <button class="modo" id="btnModo" aria-label="Cambiar entre claro y oscuro"></button>
-      <button class="salir" id="btnSalir">Salir</button>
+<!-- ================= MARCO ================= -->
+<div id="marco" class="oculto">
+  <header class="barraSup">
+    <div class="fila">
+      <div class="marca"><b>Walkmansion</b><i></i></div>
+      <div class="acciones">
+        <button class="modo" id="btnModo" aria-label="Claro u oscuro"></button>
+        <button class="salir" id="btnSalir">Salir</button>
+      </div>
     </div>
+    <nav class="menu" id="menu"></nav>
   </header>
 
-  <p class="saludo">Hola,</p>
-  <h1 class="nombre" id="nombre"></h1>
-
-  <!-- Lo que sigue: próximo pago o saldo de liquidación -->
-  <section class="hero" id="hero"></section>
-
-  <!-- Lo aportado -->
-  <section class="tarjeta">
-    <div class="etiqueta">Lo que llevas pagado</div>
-    <div class="cifras">
-      <div class="cifra"><div class="v" id="aportado"></div><div class="k">aportado</div></div>
-      <div class="cifra"><div class="v" id="porcentaje"></div><div class="k">del valor de tu unidad</div></div>
-    </div>
-    <div class="barra"><span id="barra"></span></div>
-    <div id="avisoPreliminar"></div>
-    <div class="corte" id="cortePago"></div>
-  </section>
-
-  <!-- Su unidad -->
-  <section class="tarjeta">
-    <div class="etiqueta">Tu unidad</div>
-    <div class="datos" id="datosUnidad"></div>
-  </section>
-
-  <!-- Movimientos -->
-  <section class="tarjeta">
-    <div class="etiqueta">Movimientos identificados</div>
-    <div id="movimientos"></div>
-    <div class="corte" id="corteMovimientos"></div>
-  </section>
-
-  <!-- Avance de obra -->
-  <section class="tarjeta" id="tarjetaObra">
-    <div class="etiqueta">Cómo va tu obra</div>
-    <div id="obra"></div>
-  </section>
-
-  <!-- Documentos -->
-  <section class="tarjeta">
-    <div class="etiqueta">Tus documentos</div>
-    <div id="documentos"></div>
-  </section>
-
-  <p class="pie" id="pie"></p>
-</main>
-
-<script>
-  // Se aplica ANTES de que cargue nada más: si se hiciera después, el cliente
-  // vería un destello blanco antes de que la página se ponga oscura.
-  // Sin preferencia guardada, se respeta la del teléfono o la computadora.
-  (function () {
-    var guardado = null
-    try { guardado = localStorage.getItem('wm-modo') } catch (e) {}
-    var oscuro = guardado
-      ? guardado === 'oscuro'
-      : window.matchMedia('(prefers-color-scheme: dark)').matches
-    document.documentElement.dataset.modo = oscuro ? 'oscuro' : 'claro'
-  })()
-</script>
+  <main id="portal">
+    <p class="saludo">Hola,</p>
+    <h1 class="nombre" id="nombre"></h1>
+    <div id="vistas"></div>
+    <p class="pie" id="pie"></p>
+  </main>
+</div>
 
 <script type="module">
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm'
@@ -281,39 +287,44 @@ const SUPABASE_KEY = 'sb_publishable_623gFtuDfFpP_Ghi9KEjAA_jlqb3RDG'
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY)
 
 const $ = id => document.getElementById(id)
-const mostrar = id => $(id).classList.remove('oculto')
+const ver = id => $(id).classList.remove('oculto')
 const esconder = id => $(id).classList.add('oculto')
 
-const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']
-const dinero = n => (n===null||n===undefined) ? '—'
-  : '$' + Number(n).toLocaleString('es-MX',{minimumFractionDigits:2, maximumFractionDigits:2})
-const dineroCorto = n => '$' + Number(n).toLocaleString('es-MX',{maximumFractionDigits:0})
+const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto',
+               'septiembre','octubre','noviembre','diciembre']
+const dinero = n => (n === null || n === undefined) ? '—'
+  : '$' + Number(n).toLocaleString('es-MX', {minimumFractionDigits:2, maximumFractionDigits:2})
 const fecha = s => { if(!s) return '—'
-  const [a,m,d] = s.split('-').map(Number)
-  return `${d} de ${MESES[m-1]} de ${a}` }
-// Un avance de obra es una foto del mes, no de un dia: se muestra sin dia.
-const mesAnio = s => { if(!s) return '—'
-  const [a,m] = s.split('-').map(Number)
-  return `${MESES[m-1]} de ${a}` }
+  const [a,m,d] = s.split('-').map(Number); return `${d} de ${MESES[m-1]} de ${a}` }
 const fechaCorta = s => { if(!s) return '—'
-  const [a,m,d] = s.split('-').map(Number)
-  return `${d} ${MESES[m-1].slice(0,3)} ${a}` }
+  const [a,m,d] = s.split('-').map(Number); return `${d} ${MESES[m-1].slice(0,3)} ${a}` }
+// Un avance de obra es una foto del mes, no de un día.
+const mesAnio = s => { if(!s) return '—'
+  const [a,m] = s.split('-').map(Number); return `${MESES[m-1]} de ${a}` }
 const sumarMeses = (iso, n) => {
   const [a,m,d] = iso.split('-').map(Number)
   const f = new Date(Date.UTC(a, m-1+n, 1))
-  const ultimo = new Date(Date.UTC(f.getUTCFullYear(), f.getUTCMonth()+1, 0)).getUTCDate()
-  f.setUTCDate(Math.min(d, ultimo))
-  return f.toISOString().slice(0,10)
+  const ult = new Date(Date.UTC(f.getUTCFullYear(), f.getUTCMonth()+1, 0)).getUTCDate()
+  f.setUTCDate(Math.min(d, ult)); return f.toISOString().slice(0,10)
 }
+const esc = t => String(t ?? '').replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]))
 
-// ---------- Arranque ----------
+// ---------- Modo claro / oscuro ----------
+const pintarModo = () =>
+  $('btnModo').textContent = document.documentElement.dataset.modo === 'oscuro' ? '☀' : '☾'
+pintarModo()
+$('btnModo').addEventListener('click', () => {
+  const n = document.documentElement.dataset.modo === 'oscuro' ? 'claro' : 'oscuro'
+  document.documentElement.dataset.modo = n
+  try { localStorage.setItem('wm-modo', n) } catch (e) {}
+  pintarModo()
+})
+
+// ---------- Entrada ----------
 const { data:{ session } } = await sb.auth.getSession()
-session ? cargar() : (esconder('cargando'), mostrar('entrada'))
+session ? cargar() : (esconder('cargando'), ver('entrada'))
 
-// Dos formas de entrar. El enlace por correo es la de los clientes; la contraseña
-// es puerta de servicio para las pruebas y se quita antes del lanzamiento.
 let modoClave = false
-
 $('btnAlterno').addEventListener('click', () => {
   modoClave = !modoClave
   $('campoClave').classList.toggle('oculto', !modoClave)
@@ -321,7 +332,7 @@ $('btnAlterno').addEventListener('click', () => {
   $('btnEntrar').textContent = modoClave ? 'Entrar' : 'Enviar mi enlace de acceso'
   $('btnAlterno').textContent = modoClave ? 'Mejor mándame un enlace' : 'Entrar con contraseña'
   $('errorEntrada').textContent = ''
-  $('avisoEnviado').classList.add('oculto')
+  esconder('avisoEnviado')
 })
 
 $('formEntrada').addEventListener('submit', async e => {
@@ -329,14 +340,13 @@ $('formEntrada').addEventListener('submit', async e => {
   const correo = $('correo').value.trim()
   $('btnEntrar').disabled = true
   $('errorEntrada').textContent = ''
-  $('avisoEnviado').classList.add('oculto')
+  esconder('avisoEnviado')
 
   if (modoClave) {
     const { error } = await sb.auth.signInWithPassword({ email: correo, password: $('clave').value })
     $('btnEntrar').disabled = false
     if (error) { $('errorEntrada').textContent = 'No pudimos entrar con esos datos.'; return }
-    esconder('entrada'); mostrar('cargando'); cargar()
-    return
+    esconder('entrada'); ver('cargando'); cargar(); return
   }
 
   const { error } = await sb.auth.signInWithOtp({
@@ -344,342 +354,393 @@ $('formEntrada').addEventListener('submit', async e => {
     options: { emailRedirectTo: location.origin + location.pathname, shouldCreateUser: false }
   })
   $('btnEntrar').disabled = false
-
   if (error) {
-    // shouldCreateUser:false hace que un correo que no está dado de alta no reciba nada.
-    // No se le dice "no existe": eso le confirmaría a un extraño quién es cliente y quién no.
-    $('errorEntrada').textContent = 'No pudimos enviar el enlace en este momento. Escríbele a tu asesor.'
+    // No se dice "ese correo no existe": eso le confirmaría a un extraño quién es cliente.
+    $('errorEntrada').textContent = 'No pudimos enviar el enlace. Escríbele a tu asesor.'
     return
   }
-  $('avisoEnviado').classList.remove('oculto')
+  ver('avisoEnviado')
   $('textoEnviado').innerHTML =
-    `Si <b>${correo}</b> está registrado, en unos segundos te llega el correo.<br>
+    `Si <b>${esc(correo)}</b> está registrado, en unos segundos te llega el correo.<br>
      Trae un enlace y un código. Cualquiera de los dos sirve.`
   $('codigo').focus()
 })
 
-// El código existe porque el enlace falla más de lo que parece: algunos servicios de
-// correo lo abren por su cuenta para revisarlo y lo gastan, y el navegador que traen
-// dentro las apps de correo a veces no guarda la sesión. El código no se gasta, y
-// permite leer el correo en un aparato y entrar desde otro.
+// El código existe porque el enlace falla más de lo que parece: algunos servicios
+// de correo lo abren por su cuenta y lo gastan, y el navegador que traen dentro las
+// apps de correo a veces no guarda la sesión. NO se fija un largo: quien valida es
+// Supabase, y puede emitir 6 u 8 dígitos según su configuración.
 $('btnCodigo').addEventListener('click', async () => {
-  // NO se fija un largo. Supabase puede emitir códigos de 6 u 8 dígitos según su
-  // configuración, y esa configuración puede cambiar. Quien valida el código es
-  // Supabase, no esta página: aquí solo se limpia lo que el cliente pegó.
-  // (El 2026-09-19 esto estaba clavado en 6 y el proyecto mandaba 8. No repetirlo.)
   const token = $('codigo').value.replace(/\D/g, '')
-  if (token.length < 4) {
-    $('errorEntrada').textContent = 'Escribe el código completo que viene en el correo.'
-    return
-  }
+  if (token.length < 4) { $('errorEntrada').textContent = 'Escribe el código completo.'; return }
   $('btnCodigo').disabled = true
   $('errorEntrada').textContent = ''
-  const { error } = await sb.auth.verifyOtp({
-    email: $('correo').value.trim(), token, type: 'email'
-  })
+  const { error } = await sb.auth.verifyOtp({ email: $('correo').value.trim(), token, type: 'email' })
   $('btnCodigo').disabled = false
   if (error) {
     $('errorEntrada').textContent = 'Ese código no es válido o ya venció. Pide uno nuevo.'
-    $('codigo').select()
-    return
+    $('codigo').select(); return
   }
-  esconder('entrada'); mostrar('cargando'); cargar()
+  esconder('entrada'); ver('cargando'); cargar()
 })
-
 $('codigo').addEventListener('keydown', e => { if (e.key === 'Enter') $('btnCodigo').click() })
-
-const pintarBotonModo = () =>
-  $('btnModo').textContent = document.documentElement.dataset.modo === 'oscuro' ? '☀' : '☾'
-pintarBotonModo()
-
-$('btnModo').addEventListener('click', () => {
-  const nuevo = document.documentElement.dataset.modo === 'oscuro' ? 'claro' : 'oscuro'
-  document.documentElement.dataset.modo = nuevo
-  try { localStorage.setItem('wm-modo', nuevo) } catch (e) {}
-  pintarBotonModo()
-})
-
-$('btnSalir').addEventListener('click', async () => {
-  await sb.auth.signOut(); location.reload()
-})
+$('btnSalir').addEventListener('click', async () => { await sb.auth.signOut(); location.reload() })
 
 // ---------- Carga ----------
 async function cargar(){
   const { data: cliente } = await sb.from('clientes').select('nombre').single()
 
   const { data: compra, error } = await sb.from('compras').select(`
-      precio_total, precio_departamento, pagado_confirmado, pagado_es_preliminar,
-      pagado_fecha_corte, num_mensualidades, monto_mensualidad, dia_pago,
-      primera_mensualidad, esquema, cajones_desc, bodega_desc,
+      id, precio_total, precio_departamento, precio_lista_al_comprar,
+      pagado_confirmado, pagado_es_preliminar, pagado_fecha_corte,
+      num_mensualidades, monto_mensualidad, dia_pago, primera_mensualidad,
+      esquema, cajones_desc, bodega_desc, fecha_firma,
       unidades ( numero, nivel,
-        modelos ( nombre, recamaras, banos, superficie_m2, construccion_m2, terraza_m2 ),
+        modelos ( id, nombre, recamaras, banos, superficie_m2, construccion_m2, terraza_m2,
+                  precio_lista_actual, precio_lista_fecha_corte ),
         torres ( id, nombre, entrega_estimada, entrega_contrato,
           desarrollos ( nombre, desarrollador ) ) )
     `).single()
 
+  $('nombre').textContent = cliente?.nombre || ''
+
   if (error || !compra) {
-    esconder('cargando')
-    $('portal').classList.remove('oculto')
-    $('nombre').textContent = cliente?.nombre || ''
-    $('hero').innerHTML = `<div class="etiqueta">Tu portal</div>
-      <div class="cuando">Todavía no hay información cargada en tu cuenta.
-      Escríbele a tu asesor y la subimos.</div>`
+    esconder('cargando'); ver('marco')
+    $('vistas').innerHTML = `<div class="tarjeta"><p class="vacio">
+      Todavía no hay información cargada en tu cuenta. Escríbele a tu asesor y la subimos.</p></div>`
     return
   }
 
-  const { data: pagos } = await sb.from('pagos')
-    .select('fecha, concepto, monto, forma_pago, banco_parcial, num_recibo')
-    .order('fecha', { ascending: true })
+  const [{ data: pagos }, { data: docs }, { data: avances }, { data: mercado }] = await Promise.all([
+    sb.from('pagos').select('fecha, concepto, monto, forma_pago, banco_parcial, num_recibo')
+      .order('fecha', { ascending: true }),
+    sb.from('documentos').select('tipo, nombre, storage_path').order('tipo'),
+    sb.from('avances_obra')
+      .select('fecha, fecha_pedido, porcentaje, etapa, descripcion, fotos')
+      .eq('torre_id', compra.unidades.torres.id).order('fecha', { ascending: false }).limit(1),
+    sb.from('mercado')
+      .select('renta_similares, renta_corta_estancia, comparable_min, comparable_max, fecha_corte, nota')
+      .eq('modelo_id', compra.unidades.modelos.id).order('fecha_corte', { ascending: false }).limit(1)
+  ])
 
-  const { data: docs } = await sb.from('documentos')
-    .select('tipo, nombre, storage_path, subido_en')
-    .order('subido_en', { ascending: false })
-
-  const { data: avances } = await sb.from('avances_obra')
-    .select('fecha, fecha_pedido, porcentaje, etapa, descripcion, fotos')
-    .eq('torre_id', compra.unidades.torres.id)
-    .order('fecha', { ascending: false })
-    .limit(1)
-
-  pintar(cliente, compra, pagos || [], docs || [], (avances || [])[0] || null)
+  pintar(cliente, compra, pagos || [], docs || [], (avances || [])[0] || null, (mercado || [])[0] || null)
 }
 
 // ---------- Pintado ----------
-function pintar(cliente, c, pagos, docs, avance){
+function pintar(cliente, c, pagos, docs, avance, mercado){
   const u = c.unidades, m = u.modelos, t = u.torres, d = t.desarrollos
 
-  $('nombre').textContent = cliente?.nombre || ''
-
-  // -- Cuántas mensualidades lleva --
-  const pagadas = pagos.filter(p => /mensualidad/i.test(p.concepto)).length
-  const faltan  = (c.num_mensualidades || 0) - pagadas
-
-  // -- Bloque principal --
+  // ===== 1. PAGOS =====
+  const pagadasMens = pagos.filter(p => /mensualidad/i.test(p.concepto)).length
+  const faltan = (c.num_mensualidades || 0) - pagadasMens
+  let hero
   if (faltan > 0 && c.primera_mensualidad) {
-    const vence = sumarMeses(c.primera_mensualidad, pagadas)
-    $('hero').innerHTML = `
+    const vence = sumarMeses(c.primera_mensualidad, pagadasMens)
+    hero = `<div class="hero">
       <div class="etiqueta">Tu próximo pago</div>
       <div class="monto">${dinero(c.monto_mensualidad)}</div>
       <div class="cuando">Vence el ${fecha(vence)}</div>
-      <div class="nota">Mensualidad ${pagadas+1} de ${c.num_mensualidades}
-        · te faltan ${faltan} después de esta</div>`
+      <div class="nota">Mensualidad ${pagadasMens+1} de ${c.num_mensualidades}
+        · te faltan ${faltan} después de esta</div></div>`
   } else {
     // Ya terminó sus mensualidades: lo que sigue es liquidar contra entrega.
     // Nunca se le llama "próximo pago" a algo que no tiene fecha de cobro.
     const saldo = Number(c.precio_total) - Number(c.pagado_confirmado || 0)
-    $('hero').innerHTML = `
+    hero = `<div class="hero">
       <div class="etiqueta">Saldo a liquidar contra entrega</div>
       <div class="monto">${dinero(saldo)}</div>
       <div class="cuando">Entrega estimada: ${fecha(t.entrega_estimada)}</div>
       <div class="nota">Ya cubriste tus ${c.num_mensualidades} mensualidades.
-        Este saldo se paga al momento de la entrega.</div>`
+        Este saldo se paga al momento de la entrega.</div></div>`
   }
 
-  // -- Aportado --
-  const pagado = Number(c.pagado_confirmado || 0)
-  const total  = Number(c.precio_total)
-  $('aportado').textContent   = dinero(pagado)
-  $('porcentaje').textContent = total ? (pagado/total*100).toFixed(1).replace('.',',') + '%' : '—'
-  $('barra').style.width      = total ? Math.min(100, pagado/total*100) + '%' : '0%'
+  const pagado = Number(c.pagado_confirmado || 0), total = Number(c.precio_total)
+  const VIS = 4, orden = pagos.slice().reverse()
+  const filaMov = p => `<div class="mov">
+      <div class="izq"><div class="c">${esc(p.concepto)}</div>
+        <div class="d">${fechaCorta(p.fecha)}${p.forma_pago ? ' · ' + esc(p.forma_pago) : ''}${
+          p.banco_parcial && p.banco_parcial !== '—' ? ' · ' + esc(p.banco_parcial) : ''}</div></div>
+      <div class="der"><div class="m">${dinero(p.monto)}</div>
+        ${p.num_recibo ? `<div class="r">recibo ${esc(p.num_recibo)}</div>` : ''}</div></div>`
 
-  if (c.pagado_es_preliminar) {
-    $('avisoPreliminar').innerHTML =
-      `<span class="preliminar">Cifra preliminar · en confirmación con el desarrollador</span>`
-  }
-  $('cortePago').textContent = c.pagado_fecha_corte
-    ? `Información actualizada al ${fecha(c.pagado_fecha_corte)}`
-    : 'Fecha de corte pendiente'
+  const movs = !orden.length
+    ? `<p class="vacio">Todavía no hay movimientos registrados.</p>`
+    : orden.length <= VIS
+      ? orden.map(filaMov).join('')
+      : `<div>${orden.slice(0,VIS).map(filaMov).join('')}</div>
+         <div id="movResto" class="oculto">${orden.slice(VIS).map(filaMov).join('')}</div>
+         <button class="masmov" id="btnMasMov">Ver los ${orden.length-VIS} movimientos anteriores</button>`
 
-  // -- Unidad --
-  const filas = [
-    ['Desarrollo', d.nombre],
-    ['Unidad',     `${u.numero}${t.nombre && t.nombre !== 'Única' ? ' · torre ' + t.nombre : ''}`],
-    ['Nivel',      u.nivel ?? '—'],
-    ['Prototipo',  m.nombre],
-    ['Recámaras',  `${m.recamaras} rec · ${m.banos} baños`],
-    ['Superficie', `${m.superficie_m2} m²`],
-  ]
-  if (m.terraza_m2) filas.push(['Terraza', `${m.terraza_m2} m²`])
-  if (c.cajones_desc) filas.push(['Estacionamiento', c.cajones_desc])
-  if (c.bodega_desc)  filas.push(['Bodega', c.bodega_desc])
-  filas.push(['Desarrollador', d.desarrollador || '—'])
-  filas.push(['Esquema de pago', c.esquema || '—'])
-
-  $('datosUnidad').innerHTML = filas
-    .map(([k,v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('')
-
-  // -- Movimientos --
-  // Se muestran los recientes y el resto queda plegado. Con dos años de mensualidades
-  // la lista completa sepulta todo lo demás, y lo que el cliente mira primero es lo último.
-  // El detalle no se pierde: se guarda a un clic.
-  const VISIBLES = 4
-  const orden = pagos.slice().reverse()
-  const fila = p => `
-    <div class="mov">
-      <div class="izq">
-        <div class="c">${p.concepto}</div>
-        <div class="d">${fechaCorta(p.fecha)}${p.forma_pago ? ' · ' + p.forma_pago : ''}${
-          p.banco_parcial && p.banco_parcial !== '—' ? ' · ' + p.banco_parcial : ''}</div>
+  const vistaPagos = `
+    ${hero}
+    <div class="tarjeta">
+      <div class="etiqueta">Lo que llevas pagado</div>
+      <div class="cifras">
+        <div class="cifra"><div class="v">${dinero(pagado)}</div><div class="k">aportado</div></div>
+        <div class="cifra"><div class="v">${total ? (pagado/total*100).toFixed(1).replace('.',',')+'%' : '—'}</div>
+          <div class="k">del valor de tu unidad</div></div>
       </div>
-      <div class="der">
-        <div class="m">${dinero(p.monto)}</div>
-        ${p.num_recibo ? `<div class="r">recibo ${p.num_recibo}</div>` : ''}
-      </div>
+      <div class="barra"><span style="width:${total ? Math.min(100,pagado/total*100) : 0}%"></span></div>
+      ${c.pagado_es_preliminar
+        ? `<span class="preliminar">Cifra preliminar · en confirmación con el desarrollador</span>` : ''}
+      <div class="corte">${c.pagado_fecha_corte
+        ? `Información actualizada al ${fecha(c.pagado_fecha_corte)}` : 'Fecha de corte pendiente'}</div>
+    </div>
+    <div class="tarjeta">
+      <div class="etiqueta">Movimientos identificados</div>
+      ${movs}
+      <div class="corte">${pagos.length} ${pagos.length===1?'movimiento':'movimientos'}
+        · suman ${dinero(pagos.reduce((a,p)=>a+Number(p.monto),0))}</div>
     </div>`
 
-  if (!orden.length) {
-    $('movimientos').innerHTML = `<p style="color:var(--tenue);font-size:14px">Todavía no hay movimientos registrados.</p>`
-  } else if (orden.length <= VISIBLES) {
-    $('movimientos').innerHTML = orden.map(fila).join('')
-  } else {
-    const ocultos = orden.length - VISIBLES
-    $('movimientos').innerHTML =
-      `<div id="movRecientes">${orden.slice(0, VISIBLES).map(fila).join('')}</div>
-       <div id="movResto" class="oculto">${orden.slice(VISIBLES).map(fila).join('')}</div>
-       <button class="masmov" id="btnMasMov">Ver los ${ocultos} movimientos anteriores</button>`
-    let abierto = false
-    $('btnMasMov').addEventListener('click', () => {
-      abierto = !abierto
-      $('movResto').classList.toggle('oculto', !abierto)
-      $('btnMasMov').textContent = abierto
-        ? 'Ver menos'
-        : `Ver los ${ocultos} movimientos anteriores`
-    })
-  }
-
-  const suma = pagos.reduce((a,p) => a + Number(p.monto), 0)
-  $('corteMovimientos').textContent =
-    `${pagos.length} ${pagos.length===1?'movimiento':'movimientos'} · suman ${dinero(suma)}`
-
-  // -- Avance de obra --
-  // Resumen, no reporte técnico: la etapa con nombre, una barra de tres tramos,
-  // dos frases y pocas fotos. Y la fecha en grande, no al pie: el desarrollador
-  // informa cuando le piden, no cada mes, y un avance viejo sin fecha es una
-  // afirmación falsa sobre el estado de la obra.
-  const ETAPAS = ['Cimentación', 'Estructura', 'Acabados']
-
+  // ===== 2. OBRA =====
+  const ETAPAS = ['Cimentación','Estructura','Acabados']
+  let vistaObra
   if (!avance) {
-    $('obra').innerHTML = `<p class="vacio">Todavía no hay un reporte de avance cargado.
-      En cuanto el desarrollador nos entregue el siguiente, aparece aquí.</p>`
+    vistaObra = `<div class="tarjeta"><p class="vacio">Todavía no hay un reporte de avance cargado.
+      En cuanto el desarrollador nos entregue el siguiente, aparece aquí.</p></div>`
   } else {
-    const actual = ETAPAS.findIndex(e =>
-      (avance.etapa || '').toLowerCase().startsWith(e.slice(0, 5).toLowerCase()))
-
-    const tramos = ETAPAS.map((e, i) => {
-      const clase = actual < 0 ? '' : i < actual ? 'hecha' : i === actual ? 'ahora' : ''
-      return `<div class="${clase}"><div class="marca"></div><span>${e}</span></div>`
+    const iAct = ETAPAS.findIndex(e =>
+      (avance.etapa||'').toLowerCase().startsWith(e.slice(0,5).toLowerCase()))
+    const tramos = ETAPAS.map((e,i) => {
+      const cl = iAct < 0 ? '' : i < iAct ? 'hecha' : i === iAct ? 'ahora' : ''
+      return `<div class="${cl}"><div class="marca2"></div><span>${e}</span></div>`
     }).join('')
 
-    // ¿Cuántos meses tiene el reporte?
-    const hoy = new Date()
-    const [fa, fm] = avance.fecha.split('-').map(Number)
-    const meses = (hoy.getFullYear() - fa) * 12 + (hoy.getMonth() + 1 - fm)
-
+    const hoy = new Date(), [fa,fm] = avance.fecha.split('-').map(Number)
+    const meses = (hoy.getFullYear()-fa)*12 + (hoy.getMonth()+1-fm)
     const aviso = meses >= 4
-      ? `<div class="viejo"><b>Este reporte tiene ${meses} meses.</b>
-         ${avance.fecha_pedido
-            ? `Le pedimos la actualización al desarrollador el ${fecha(avance.fecha_pedido)} y la
-               publicamos en cuanto llegue.`
-            : 'Ya solicitamos la actualización.'}</div>`
-      : ''
+      ? `<div class="viejo"><b>Este reporte tiene ${meses} meses.</b> ${avance.fecha_pedido
+          ? `Le pedimos la actualización al desarrollador el ${fecha(avance.fecha_pedido)}
+             y la publicamos en cuanto llegue.` : 'Ya solicitamos la actualización.'}</div>` : ''
 
-    // El porcentaje va como número grande + barra, no como dona ni gráfica:
-    // es un solo valor contra un total, sin categorías que comparar. Y usa la
-    // misma barra que "lo que llevas pagado", para que el portal hable un solo
-    // idioma visual. El % solo no dice mucho — por eso va junto a la etapa.
+    // El porcentaje va como número + barra, no como dona: es un solo valor contra
+    // un total. Y usa la misma barra que "lo que llevas pagado" — un solo idioma visual.
     const cifra = avance.porcentaje != null
       ? `<div class="avanceCifra"><b>${avance.porcentaje}%</b><span>de avance</span></div>
          <div class="barra" style="margin-bottom:14px">
-           <span style="width:${Math.min(100, avance.porcentaje)}%"></span></div>`
-      : ''
+           <span style="width:${Math.min(100,avance.porcentaje)}%"></span></div>` : ''
 
-    // Los trabajos vienen por rango de pisos ("5-12 | tablaroca"). Como el portal
-    // sabe en qué nivel está este cliente, le marca SU renglón. Es la diferencia
-    // entre leer un reporte de la torre y ver cómo va tu departamento.
-    const miNivel = u.nivel
-    const lineas = (avance.descripcion || '').split('\n').filter(Boolean)
+    // Los trabajos vienen por rango de pisos. Como el portal sabe en qué nivel está
+    // este cliente, le marca SU renglón: la diferencia entre leer un reporte de la
+    // torre y ver cómo va tu departamento.
+    const lineas = (avance.descripcion||'').split('\n').filter(Boolean)
     const trabajos = lineas.length ? `<div class="trabajos">` + lineas.map(l => {
-      const m = l.match(/^\s*(\d+)\s*-\s*(\d+)\s*\|\s*(.+)$/)
-      if (!m) return `<div class="trabajo"><div class="que">${l}</div></div>`
-      const [, desde, hasta, que] = m
-      const esMio = miNivel != null && miNivel >= +desde && miNivel <= +hasta
-      return `<div class="trabajo${esMio ? ' tuyo' : ''}">
-                <div class="pisos">Pisos ${desde}–${hasta}</div>
-                <div class="que">${que}${esMio ? '<span class="tupiso">TU PISO</span>' : ''}</div>
-              </div>`
+      const mm = l.match(/^\s*(\d+)\s*-\s*(\d+)\s*\|\s*(.+)$/)
+      if (!mm) return `<div class="trabajo"><div class="que">${esc(l)}</div></div>`
+      const [, des, has, que] = mm
+      const mio = u.nivel != null && u.nivel >= +des && u.nivel <= +has
+      return `<div class="trabajo${mio?' tuyo':''}">
+          <div class="pisos">Pisos ${des}–${has}</div>
+          <div class="que">${esc(que)}${mio?'<span class="tupiso">TU PISO</span>':''}</div></div>`
     }).join('') + `</div>` : ''
 
-    $('obra').innerHTML = `
+    vistaObra = `<div class="tarjeta">
       ${cifra}
-      <div class="etapa">${avance.etapa || 'En construcción'}</div>
+      <div class="etapa">${esc(avance.etapa || 'En construcción')}</div>
       <div style="font-size:13px;color:var(--tenue)">
         Reportado por el desarrollador en ${mesAnio(avance.fecha)}</div>
       <div class="etapas">${tramos}</div>
       ${trabajos}
       <div class="fotos" id="fotosObra"></div>
-      ${aviso}`
-
-    // Las fotos viven en almacenamiento privado, igual que los documentos:
-    // cada una se pide con un enlace temporal, no hay dirección pública.
-    if (avance.fotos && avance.fotos.length) {
-      Promise.all(avance.fotos.slice(0, 4).map(ruta =>
-        sb.storage.from('obra').createSignedUrl(ruta, 600)
-      )).then(res => {
-        $('fotosObra').innerHTML = res
-          .filter(r => r.data)
-          .map(r => `<a href="${r.data.signedUrl}" target="_blank">
-                       <img src="${r.data.signedUrl}" alt="Avance de obra" loading="lazy">
-                     </a>`).join('')
-      })
-    }
+      ${aviso}
+    </div>`
   }
 
-  // -- Documentos --
-  // Los archivos viven en almacenamiento PRIVADO. No hay liga permanente a ninguno:
-  // al dar clic se pide un enlace temporal que vive un minuto y luego muere. Si alguien
-  // copiara ese enlace, deja de servir solo. Nunca hay una URL pública de un contrato.
-  const extension = n => (n.split('.').pop() || '').toUpperCase().slice(0, 4)
+  // ===== 3. TU UNIDAD =====
+  // Los planos y ubicaciones se ven AQUÍ como imágenes, no enterrados en una lista
+  // de documentos: son parte de entender qué compraste, no papelería.
+  const VISUALES = ['Plano de tu unidad','Ubicacion de tu unidad','Plano del desarrollo']
+  const visuales = docs.filter(x => VISUALES.includes(x.tipo))
+  const papeles  = docs.filter(x => !VISUALES.includes(x.tipo))
 
-  $('documentos').innerHTML = docs.length
-    ? docs.map((d, i) => `
+  const filas = [
+    ['Desarrollo', esc(d.nombre)],
+    ['Unidad', `${esc(u.numero)}${t.nombre && t.nombre !== 'Única' ? ' · torre ' + esc(t.nombre) : ''}`],
+    ['Nivel', u.nivel ?? '—'],
+    ['Prototipo', esc(m.nombre)],
+    ['Distribución', `${m.recamaras} rec · ${m.banos} baños`],
+    ['Superficie', `${m.superficie_m2} m²`],
+  ]
+  if (m.construccion_m2) filas.push(['Construcción', `${m.construccion_m2} m²`])
+  if (m.terraza_m2) filas.push(['Terraza', `${m.terraza_m2} m²`])
+  if (c.cajones_desc) filas.push(['Estacionamiento', esc(c.cajones_desc)])
+  if (c.bodega_desc) filas.push(['Bodega', esc(c.bodega_desc)])
+  if (c.fecha_firma) filas.push(['Fecha de firma', fecha(c.fecha_firma)])
+  filas.push(['Desarrollador', esc(d.desarrollador || '—')])
+
+  const vistaUnidad = `
+    <div class="tarjeta">
+      <div class="etiqueta">Tu unidad</div>
+      <div class="datos">${filas.map(([k,v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('')}</div>
+    </div>
+    ${visuales.length ? `<div class="tarjeta">
+      <div class="etiqueta">Planos y ubicación</div>
+      <div class="fotos" id="galeriaUnidad"></div>
+    </div>` : ''}`
+
+  // ===== 4. TU INVERSIÓN =====
+  // REGLA DURA (C-22): sin precio de lista al comprar y precio de lista de hoy,
+  // esta sección NO se dibuja. Ni aproximada, ni con nota al pie. Comparar lo que
+  // pagó contra la lista de hoy le regalaría su descuento por forma de pago como
+  // si fuera plusvalía — y en esta cartera casi todos traen descuento.
+  const listaAntes = c.precio_lista_al_comprar, listaHoy = m.precio_lista_actual
+  let vistaInversion
+  if (listaAntes == null || listaHoy == null) {
+    vistaInversion = `<div class="tarjeta"><p class="vacio">
+      Estamos actualizando el precio de lista de tu modelo con el desarrollador.
+      En cuanto lo tengamos verás aquí cómo se compara contra lo que pagaste.</p></div>`
+  } else {
+    const apreciacion = Number(listaHoy) - Number(listaAntes)
+    const descuento = Number(listaAntes) - Number(c.precio_departamento)
+    vistaInversion = `<div class="tarjeta">
+      <div class="etiqueta">Tu departamento hoy</div>
+      <div class="compara"><div class="k">Precio de lista cuando compraste
+        <small>${c.fecha_firma ? mesAnio(c.fecha_firma) : ''}</small></div>
+        <div class="v">${dinero(listaAntes)}</div></div>
+      <div class="compara"><div class="k">Lo que pagaste
+        <small>ya con el descuento de tu forma de pago</small></div>
+        <div class="v">${dinero(c.precio_departamento)}</div></div>
+      <div class="compara"><div class="k">Precio de lista hoy
+        <small>${m.precio_lista_fecha_corte ? 'al ' + fecha(m.precio_lista_fecha_corte) : ''}</small></div>
+        <div class="v">${dinero(listaHoy)}</div></div>
+      <div class="resalta">
+        <div class="k">Ha subido desde que compraste</div>
+        <div class="v">${dinero(apreciacion)}</div>
+      </div>
+      ${descuento > 0 ? `<div class="resalta" style="margin-top:8px">
+        <div class="k">Y además te ahorraste, por tu forma de pago</div>
+        <div class="v">${dinero(descuento)}</div></div>` : ''}
+      <div class="corte">Esta diferencia es sobre precio de lista, no dinero disponible:
+        se vuelve real cuando entregues o vendas.</div>
+    </div>`
+  }
+
+  // ===== 5. CONTRA LO NUEVO TERMINADO =====
+  let vistaMercado
+  if (!mercado || (mercado.comparable_min == null && mercado.comparable_max == null)) {
+    vistaMercado = `<div class="tarjeta"><p class="vacio">
+      Estamos levantando los precios de departamentos similares ya terminados en tu zona.
+      Aparecerán aquí en cuanto cerremos el corte.</p></div>`
+  } else {
+    vistaMercado = `<div class="tarjeta">
+      <div class="etiqueta">Departamentos similares ya terminados, en tu zona</div>
+      <div class="compara"><div class="k">Rango de precios
+        <small>entregados, similares al tuyo</small></div>
+        <div class="v">${dinero(mercado.comparable_min)} – ${dinero(mercado.comparable_max)}</div></div>
+      <div class="compara"><div class="k">Lo que pagaste tú
+        <small>en preventa</small></div>
+        <div class="v">${dinero(c.precio_departamento)}</div></div>
+      ${mercado.renta_similares ? `<div class="compara"><div class="k">Renta de similares
+        <small>referencia mensual</small></div>
+        <div class="v">${dinero(mercado.renta_similares)}</div></div>` : ''}
+      ${mercado.nota ? `<p style="font-size:13px;color:var(--tenue);margin-top:12px">${esc(mercado.nota)}</p>` : ''}
+      <div class="corte">Información al ${fecha(mercado.fecha_corte)}
+        · levantamiento propio de Walkmansion</div>
+    </div>`
+  }
+
+  // ===== 6. DOCUMENTOS =====
+  const ext = n => (n.split('.').pop() || '').toUpperCase().slice(0,4)
+  const vistaDocs = `<div class="tarjeta">
+      <div class="etiqueta">Tus documentos</div>
+      ${papeles.length ? papeles.map((x,i) => `
         <div class="doc">
-          <div class="ico">${extension(d.nombre)}</div>
-          <div class="txt">
-            <div class="n">${d.nombre}</div>
-            <div class="t">${d.tipo}</div>
-          </div>
-          <button class="ver" data-i="${i}">Ver</button>
+          <div class="ico">${ext(x.nombre)}</div>
+          <div class="txt"><div class="n">${esc(x.nombre)}</div><div class="t">${esc(x.tipo)}</div></div>
+          <button class="ver" data-doc="${i}">Ver</button>
         </div>`).join('')
-    : `<p class="vacio">Todavía no hay documentos cargados.
-       Tu contrato y tus comprobantes aparecerán aquí.</p>`
+        : `<p class="vacio">Todavía no hay documentos cargados.</p>`}
+    </div>`
 
-  $('documentos').querySelectorAll('.ver').forEach(btn => {
+  // ---------- Menú y vistas ----------
+  const VISTAS = [
+    ['pagos',      'Tus pagos',        vistaPagos],
+    ['obra',       'Tu obra',          vistaObra],
+    ['unidad',     'Tu unidad',        vistaUnidad],
+    ['inversion',  'Tu inversión',     vistaInversion],
+    ['mercado',    'Contra lo nuevo',  vistaMercado],
+    ['documentos', 'Documentos',       vistaDocs],
+  ]
+
+  $('menu').innerHTML = VISTAS
+    .map(([id,t]) => `<button data-v="${id}">${t}</button>`).join('')
+  $('vistas').innerHTML = VISTAS
+    .map(([id,t,html]) => `<div class="vista oculto" id="v-${id}">
+      <div class="tituloVista">${t}</div>${html}</div>`).join('')
+
+  let actual = null
+  function abrir(id){
+    if (!VISTAS.some(([v]) => v === id)) id = 'pagos'
+    if (actual === id) return
+    actual = id
+    VISTAS.forEach(([v]) => $('v-'+v).classList.toggle('oculto', v !== id))
+    $('menu').querySelectorAll('button').forEach(b =>
+      b.setAttribute('aria-current', b.dataset.v === id ? 'true' : 'false'))
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+    try { history.replaceState(null, '', '#' + id) } catch (e) {}
+  }
+  $('menu').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (b) abrir(b.dataset.v)
+  })
+
+  $('pie').textContent = [
+    `Entrega estimada: ${fecha(t.entrega_estimada)}`,
+    t.entrega_contrato ? `Comprometida en contrato: ${fecha(t.entrega_contrato)}` : null,
+    'Si algo aquí no coincide con tu contrato, dínoslo.'
+  ].filter(Boolean).join(' · ')
+
+  esconder('cargando'); ver('marco')
+  abrir((location.hash || '').replace('#','') || 'pagos')
+
+  // ---------- Enlaces temporales ----------
+  // Ni los documentos ni las fotos tienen dirección permanente. Cada apertura pide
+  // un enlace que vive un rato y luego muere: si alguien lo copia, deja de servir solo.
+  const firmar = (bucket, ruta, seg) => sb.storage.from(bucket).createSignedUrl(ruta, seg)
+
+  document.querySelectorAll('[data-doc]').forEach(btn => {
     btn.addEventListener('click', async () => {
-      const d = docs[Number(btn.dataset.i)]
-      btn.disabled = true
-      const previo = btn.textContent
-      btn.textContent = 'Abriendo…'
-      const { data, error } = await sb.storage
-        .from('documentos').createSignedUrl(d.storage_path, 60)
-      btn.disabled = false
-      btn.textContent = previo
-      if (error || !data) {
-        btn.textContent = 'No disponible'
-        return
-      }
+      const x = papeles[Number(btn.dataset.doc)]
+      btn.disabled = true; const antes = btn.textContent; btn.textContent = 'Abriendo…'
+      const { data } = await firmar('documentos', x.storage_path, 60)
+      btn.disabled = false; btn.textContent = antes
+      if (!data) { btn.textContent = 'No disponible'; return }
       window.open(data.signedUrl, '_blank')
     })
   })
 
-  // -- Pie --
-  const entregaContrato = t.entrega_contrato
-    ? ` · Entrega comprometida en contrato: ${fecha(t.entrega_contrato)}`
-    : ''
-  $('pie').textContent =
-    `Entrega estimada: ${fecha(t.entrega_estimada)}${entregaContrato}. ` +
-    `Si algo aquí no coincide con tu contrato, dínoslo.`
+  if (visuales.length) {
+    Promise.all(visuales.map(x => firmar('documentos', x.storage_path, 900))).then(res => {
+      const cont = $('galeriaUnidad'); if (!cont) return
+      cont.innerHTML = res.map((r,i) => {
+        if (!r.data) return ''
+        const x = visuales[i], url = r.data.signedUrl
+        const esImg = /\.(jpe?g|png|webp|gif|heic)$/i.test(x.nombre)
+        return `<a href="${url}" target="_blank" title="${esc(x.tipo)}">${
+          esImg ? `<img src="${url}" alt="${esc(x.tipo)}" loading="lazy">`
+                : `<div class="pdf"><b>PDF</b>${esc(x.tipo)}</div>`}</a>`
+      }).join('')
+    })
+  }
 
-  esconder('cargando'); mostrar('portal')
+  if (avance && avance.fotos && avance.fotos.length) {
+    Promise.all(avance.fotos.slice(0,4).map(r => firmar('obra', r, 900))).then(res => {
+      const cont = $('fotosObra'); if (!cont) return
+      cont.innerHTML = res.filter(r => r.data).map(r =>
+        `<a href="${r.data.signedUrl}" target="_blank">
+           <img src="${r.data.signedUrl}" alt="Avance de obra" loading="lazy"></a>`).join('')
+    })
+  }
+
+  const btnMas = $('btnMasMov')
+  if (btnMas) {
+    let abierto = false
+    btnMas.addEventListener('click', () => {
+      abierto = !abierto
+      $('movResto').classList.toggle('oculto', !abierto)
+      btnMas.textContent = abierto ? 'Ver menos' : `Ver los ${orden.length-VIS} movimientos anteriores`
+    })
+  }
 }
 </script>
 </body>
