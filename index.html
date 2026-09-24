@@ -136,6 +136,21 @@
   .doc .ver:hover{background:var(--suave)}
   .doc .ver:disabled{opacity:.5;cursor:default}
   .vacio{color:var(--tenue);font-size:14px;line-height:1.55}
+
+  .etapa{font-size:22px;font-weight:700;letter-spacing:-.02em;margin-bottom:3px}
+  .etapas{display:flex;gap:6px;margin:16px 0 10px}
+  .etapas div{flex:1;text-align:center}
+  .etapas .marca{height:6px;border-radius:99px;background:var(--pista)}
+  .etapas .hecha .marca{background:var(--relleno)}
+  .etapas .ahora .marca{background:var(--lima)}
+  .etapas span{display:block;font-size:11px;color:var(--tenue2);margin-top:7px}
+  .etapas .ahora span{color:var(--texto);font-weight:700}
+  .etapas .hecha span{color:var(--tenue)}
+  .fotos{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-top:16px}
+  .fotos a{display:block;aspect-ratio:4/3;border-radius:9px;overflow:hidden;border:1px solid var(--linea);background:var(--suave)}
+  .fotos img{width:100%;height:100%;object-fit:cover;display:block}
+  .viejo{background:var(--aviso-bg);color:var(--aviso-texto);font-size:12.5px;line-height:1.55;
+    padding:11px 13px;border-radius:9px;margin-top:14px}
   .pie{font-size:12px;color:var(--tenue2);text-align:center;margin-top:26px;line-height:1.6}
   #cargando{padding:80px 20px;text-align:center;color:var(--tenue)}
 </style>
@@ -215,6 +230,12 @@
     <div class="etiqueta">Movimientos identificados</div>
     <div id="movimientos"></div>
     <div class="corte" id="corteMovimientos"></div>
+  </section>
+
+  <!-- Avance de obra -->
+  <section class="tarjeta" id="tarjetaObra">
+    <div class="etiqueta">Cómo va tu obra</div>
+    <div id="obra"></div>
   </section>
 
   <!-- Documentos -->
@@ -376,7 +397,7 @@ async function cargar(){
       primera_mensualidad, esquema, cajones_desc, bodega_desc,
       unidades ( numero, nivel,
         modelos ( nombre, recamaras, banos, superficie_m2, construccion_m2, terraza_m2 ),
-        torres ( nombre, entrega_estimada, entrega_contrato,
+        torres ( id, nombre, entrega_estimada, entrega_contrato,
           desarrollos ( nombre, desarrollador ) ) )
     `).single()
 
@@ -398,11 +419,17 @@ async function cargar(){
     .select('tipo, nombre, storage_path, subido_en')
     .order('subido_en', { ascending: false })
 
-  pintar(cliente, compra, pagos || [], docs || [])
+  const { data: avances } = await sb.from('avances_obra')
+    .select('fecha, fecha_pedido, porcentaje, etapa, descripcion, fotos')
+    .eq('torre_id', compra.unidades.torres.id)
+    .order('fecha', { ascending: false })
+    .limit(1)
+
+  pintar(cliente, compra, pagos || [], docs || [], (avances || [])[0] || null)
 }
 
 // ---------- Pintado ----------
-function pintar(cliente, c, pagos, docs){
+function pintar(cliente, c, pagos, docs, avance){
   const u = c.unidades, m = u.modelos, t = u.torres, d = t.desarrollos
 
   $('nombre').textContent = cliente?.nombre || ''
@@ -507,6 +534,63 @@ function pintar(cliente, c, pagos, docs){
   const suma = pagos.reduce((a,p) => a + Number(p.monto), 0)
   $('corteMovimientos').textContent =
     `${pagos.length} ${pagos.length===1?'movimiento':'movimientos'} · suman ${dinero(suma)}`
+
+  // -- Avance de obra --
+  // Resumen, no reporte técnico: la etapa con nombre, una barra de tres tramos,
+  // dos frases y pocas fotos. Y la fecha en grande, no al pie: el desarrollador
+  // informa cuando le piden, no cada mes, y un avance viejo sin fecha es una
+  // afirmación falsa sobre el estado de la obra.
+  const ETAPAS = ['Cimentación', 'Estructura', 'Acabados']
+
+  if (!avance) {
+    $('obra').innerHTML = `<p class="vacio">Todavía no hay un reporte de avance cargado.
+      En cuanto el desarrollador nos entregue el siguiente, aparece aquí.</p>`
+  } else {
+    const actual = ETAPAS.findIndex(e =>
+      (avance.etapa || '').toLowerCase().startsWith(e.slice(0, 5).toLowerCase()))
+
+    const tramos = ETAPAS.map((e, i) => {
+      const clase = actual < 0 ? '' : i < actual ? 'hecha' : i === actual ? 'ahora' : ''
+      return `<div class="${clase}"><div class="marca"></div><span>${e}</span></div>`
+    }).join('')
+
+    // ¿Cuántos meses tiene el reporte?
+    const hoy = new Date()
+    const [fa, fm] = avance.fecha.split('-').map(Number)
+    const meses = (hoy.getFullYear() - fa) * 12 + (hoy.getMonth() + 1 - fm)
+
+    const aviso = meses >= 4
+      ? `<div class="viejo"><b>Este reporte tiene ${meses} meses.</b>
+         ${avance.fecha_pedido
+            ? `Le pedimos la actualización al desarrollador el ${fecha(avance.fecha_pedido)} y la
+               publicamos en cuanto llegue.`
+            : 'Ya solicitamos la actualización.'}</div>`
+      : ''
+
+    $('obra').innerHTML = `
+      <div class="etapa">${avance.etapa || 'En construcción'}${
+        avance.porcentaje ? ` · ${avance.porcentaje}%` : ''}</div>
+      <div class="cuando" style="font-size:13px;color:var(--tenue)">
+        Reportado por el desarrollador el ${fecha(avance.fecha)}</div>
+      <div class="etapas">${tramos}</div>
+      ${avance.descripcion ? `<p style="font-size:14px;line-height:1.6;margin-top:6px">${avance.descripcion}</p>` : ''}
+      <div class="fotos" id="fotosObra"></div>
+      ${aviso}`
+
+    // Las fotos viven en almacenamiento privado, igual que los documentos:
+    // cada una se pide con un enlace temporal, no hay dirección pública.
+    if (avance.fotos && avance.fotos.length) {
+      Promise.all(avance.fotos.slice(0, 4).map(ruta =>
+        sb.storage.from('obra').createSignedUrl(ruta, 600)
+      )).then(res => {
+        $('fotosObra').innerHTML = res
+          .filter(r => r.data)
+          .map(r => `<a href="${r.data.signedUrl}" target="_blank">
+                       <img src="${r.data.signedUrl}" alt="Avance de obra" loading="lazy">
+                     </a>`).join('')
+      })
+    }
+  }
 
   // -- Documentos --
   // Los archivos viven en almacenamiento PRIVADO. No hay liga permanente a ninguno:
