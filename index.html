@@ -60,12 +60,12 @@
      fondo; en pantalla ancha la caja se recorre a la derecha y la torre queda a la
      izquierda. Centrar las dos en el mismo punto escondía la animación detrás del
      formulario. */
-  #entrada{min-height:100dvh;display:flex;align-items:flex-end;justify-content:center;
-    padding:24px 24px 34px;position:relative;overflow:hidden;
+  #entrada{min-height:100dvh;display:flex;align-items:center;justify-content:center;
+    padding:24px;position:relative;overflow:hidden;
     background:
-      radial-gradient(90% 70% at 50% 8%,  rgba(14,158,136,.20) 0%, transparent 60%),
-      radial-gradient(70% 60% at 82% 96%, rgba(208,251,87,.10) 0%, transparent 60%),
-      #1E2330}
+      radial-gradient(120% 52% at 50% 90%, rgba(14,158,136,.14) 0%, transparent 62%),
+      radial-gradient(70% 34% at 16% 78%, rgba(208,251,87,.09) 0%, transparent 62%),
+      linear-gradient(180deg, #0A0D13 0%, #111825 46%, #070A0F 100%)}
   #constelacion{position:absolute;inset:0;width:100%;height:100%;display:block}
   /* La caja flota sobre la constelación: vidrio, no un bloque opaco. El desenfoque
      es lo que deja leer el formulario sin apagar la animación de atrás. */
@@ -75,7 +75,11 @@
     box-shadow:0 24px 60px rgba(0,0,0,.42)}
   @supports not (backdrop-filter: blur(4px)){ .caja{background:rgba(30,35,48,.94)} }
   @media (min-width:900px){
-    #entrada{align-items:center;justify-content:flex-end;padding:24px max(7vw,56px)}
+    #entrada{justify-content:flex-end;padding:24px max(7vw,56px)}
+  }
+  /* En teléfono la caja sube: centrada tapaba las siluetas, que son el punto. */
+  @media (max-width:899px){
+    #entrada{align-items:flex-start;padding-top:max(24px,5vh)}
   }
   .marca{display:flex;align-items:baseline;gap:2px;justify-content:center;margin-bottom:28px}
   .marca b{color:#fff;font-size:22px;font-weight:700;letter-spacing:-.02em}
@@ -398,200 +402,198 @@ const SUPABASE_KEY = 'sb_publishable_623gFtuDfFpP_Ghi9KEjAA_jlqb3RDG'
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY)
 
 
-// ---------- La torre de la entrada ----------
-// Volumen en perspectiva real, no isométrico: lo que está lejos se dibuja más tenue
-// y más delgado, como en un render. Eso —y el giro— es lo que da la sensación de
-// volumen; no la cantidad de líneas.
+// ---------- El skyline de la entrada ----------
+// La ciudad —Puerta de Hierro— reconstruida en alambre, con las siluetas de las fotos
+// de Carlos: la torre de la corona encendida, el grupo de residenciales, la del aspa
+// cruzada en la fachada, la del remate inclinado, la losa de rejilla y la delgada más
+// alta del extremo. Al pasar el dedo, la estructura se deforma y vuelve sola.
 //
 // Combinación elegida por Carlos el 2026-09-25, probada en la página de mandos:
-//   masa PLACAS · densidad DENSA · giro LENTO · reacción al dedo MEDIA
+//   deformación MARCADA · fachada CON PISOS · fondo RESPIRA · luces CIUDAD VIVA
 //
-// Hay DOS categorías de línea, y ahí está todo el diseño:
-//   · la ESTRUCTURA (losas y columnas) se ve — es la que dibuja el edificio;
-//   · la MALLA (montantes de fachada y diagonales) va al 8% — no se lee como línea,
-//     se lee como textura. Es lo que da «más cargado» sin cargar nada.
-// Lo que toca el dedo sube a lima, y nunca son más de unas decenas de líneas.
-//
-// Cada categoría se traza de UN SOLO JALÓN: son tres operaciones de dibujo por cuadro,
-// no setecientas. Es lo que deja meter ~750 líneas sin que el teléfono se ahogue.
-;(function torre(){
+// No usa ninguna librería. El componente de referencia que trajo Carlos hacía esto con
+// three.js y 50,000 partículas —650 KB de descarga y 200,000 objetos nuevos por cuadro—;
+// aquí son ~900 líneas, cero descargas y cero objetos por cuadro. El efecto nunca
+// dependió de la librería: depende de que la geometría se deforme cerca del dedo y
+// regrese. Una ciudad es líneas, no polvo.
+;(function skyline(){
   const lienzo = document.getElementById('constelacion')
   if (!lienzo) return
   const g = lienzo.getContext('2d', { alpha:true })
   const quieto = matchMedia('(prefers-reduced-motion: reduce)').matches
-  const LIMA = '#D0FB57', TEAL = '#2FD4B8', FRIO = '#8FA0BE', ESTRUCTURA = '#A8B6CC'
-  const NIV = 20, ALT = 0.108, FUERZA = 15, VEL = 0.055
+  const LIMA='#D0FB57', TEAL='#2FD4B8', FRIO='#8FA0BE', ESTR='#A8B6CC'
+  const DEFORMA = 32, RESPIRA = quieto ? 0 : 0.10
+  let pisos = 1, ventanas = 0.26            // los baja la válvula si el aparato no aguanta
 
-  let V = [], estr = [], malla = [], polvo = []
-  let w = 0, h = 0, ang = 0.6, bays = 5, diagonales = true
-  let corriendo = false, pt = { x:-9e9, y:-9e9, on:false }
+  // x relativo · ancho · alto · capa (0 lejos, 2 cerca) · remate
+  const CIUDAD = [
+    {x:0.02,w:0.055,h:0.30,c:0,t:'plano'},    {x:0.075,w:0.040,h:0.42,c:0,t:'plano'},
+    {x:0.118,w:0.030,h:0.74,c:2,t:'corona'},  {x:0.152,w:0.052,h:0.36,c:0,t:'plano'},
+    {x:0.208,w:0.046,h:0.62,c:1,t:'bandas'},  {x:0.258,w:0.040,h:0.55,c:0,t:'plano'},
+    {x:0.302,w:0.062,h:0.70,c:2,t:'escalon'}, {x:0.368,w:0.044,h:0.48,c:0,t:'plano'},
+    {x:0.416,w:0.050,h:0.66,c:1,t:'aspa'},    {x:0.470,w:0.040,h:0.52,c:0,t:'bandas'},
+    {x:0.514,w:0.058,h:0.78,c:2,t:'inclinado'},{x:0.576,w:0.052,h:0.86,c:2,t:'rejilla'},
+    {x:0.632,w:0.038,h:0.50,c:0,t:'plano'},   {x:0.674,w:0.048,h:0.68,c:1,t:'bandas'},
+    {x:0.726,w:0.044,h:0.58,c:0,t:'plano'},   {x:0.774,w:0.034,h:0.92,c:2,t:'delgada'},
+    {x:0.812,w:0.050,h:0.44,c:0,t:'plano'},   {x:0.866,w:0.040,h:0.60,c:1,t:'bandas'},
+    {x:0.910,w:0.056,h:0.34,c:0,t:'plano'},
+  ]
+  const ALFA = [[0.16,1],[0.30,1],[0.52,1.25]]
 
-  // Dos placas corridas: la izquierda llega al nivel 13, la derecha al 19.
-  const masa = n => {
-    const c = []
-    if (n < 13) c.push({ w:0.26, d:0.22, x:-0.30, z:-0.12 })
-    if (n < 19) c.push({ w:0.26, d:0.22, x: 0.30, z: 0.12 })
-    return c
-  }
+  let V=[], estr=[], malla=[], aspas=[], luces=[], corona=null
+  let w=0, h=0, ESC=0, reloj=0, corriendo=false, pt={x:-9e9,y:-9e9,on:false}
+  const nodo=(x,y,c)=>{ V.push({bx:x,by:y,c,dx:0,dy:0}); return V.length-1 }
 
   function armar(){
-    w = lienzo.clientWidth; h = lienzo.clientHeight
-    const dpr = Math.min(2, devicePixelRatio || 1)
-    lienzo.width = Math.round(w*dpr); lienzo.height = Math.round(h*dpr)
-    g.setTransform(dpr, 0, 0, dpr, 0, 0)
+    w=lienzo.clientWidth; h=lienzo.clientHeight
+    const dpr=Math.min(2, devicePixelRatio||1)
+    lienzo.width=Math.round(w*dpr); lienzo.height=Math.round(h*dpr)
+    g.setTransform(dpr,0,0,dpr,0,0)
 
-    V = []; estr = []; malla = []
-    const pilas = []
-    for (let n = 0; n < NIV; n++) {
-      masa(n).forEach((c, ci) => {
-        if (!pilas[ci]) pilas[ci] = []
-        const y = n*ALT - NIV*ALT/2
-        const esq = [[-c.w,-c.d],[c.w,-c.d],[c.w,c.d],[-c.w,c.d]]
-        const iesq = esq.map(([a,b]) => {
-          V.push({ x:a+c.x, y, z:b+c.z, dx:0, dy:0, esq:true }); return V.length-1 })
-        const imull = []
-        for (let k = 0; k < 4; k++) {
-          const fila = [], A = esq[k], B = esq[(k+1)%4]
-          for (let t = 1; t < bays; t++) {
-            const f = t/bays
-            V.push({ x:A[0]+(B[0]-A[0])*f+c.x, y, z:A[1]+(B[1]-A[1])*f+c.z, dx:0, dy:0 })
-            fila.push(V.length-1)
-          }
-          imull.push(fila)
-        }
-        pilas[ci].push({ esq:iesq, mull:imull, n })
-      })
-    }
-    for (const pila of pilas)
-      for (let i = 0; i < pila.length; i++) {
-        const P = pila[i], Q = pila[i-1]
-        for (let k = 0; k < 4; k++) estr.push([P.esq[k], P.esq[(k+1)%4]])
-        if (Q && Q.n === P.n-1) {
-          for (let k = 0; k < 4; k++) estr.push([Q.esq[k], P.esq[k]])
-          for (let k = 0; k < 4; k++)
-            for (let t = 0; t < P.mull[k].length && t < Q.mull[k].length; t++)
-              malla.push([Q.mull[k][t], P.mull[k][t]])
-          if (diagonales && P.n % 3 === 0)
-            for (let k = 0; k < 4; k++) malla.push([Q.esq[k], P.esq[(k+1)%4]])
-        }
-      }
-
+    V=[]; estr=[]; malla=[]; aspas=[]; luces=[]; corona=null
+    // La ciudad vive en la mitad de abajo: el formulario va encima, no compite.
+    const SUELO = h*0.90
     const angosta = w < 900
-    polvo = Array.from({ length: angosta ? 14 : 26 }, () => ({
-      x: Math.random()*w, y: Math.random()*h,
-      vx: (Math.random()-0.5)*0.1, vy: -0.04 - Math.random()*0.1,
-      r: 0.8 + Math.random()*1.1, o: 0.05 + Math.random()*0.1,
-    }))
+    ESC = angosta ? Math.min(h*0.32, w*0.95) : Math.min(h*0.52, w*0.34)
+
+    for(const b of CIUDAD){
+      const x1=b.x*w, x2=(b.x+b.w)*w, alto=b.h*ESC, y1=SUELO-alto
+      const prof=b.w*w*0.30*(b.c===2?1:0.6)
+      let perfil
+      if(b.t==='inclinado')    perfil=[[x1,y1+alto*0.10],[x2,y1]]
+      else if(b.t==='escalon') perfil=[[x1,y1+alto*0.07],[x1+(x2-x1)*0.25,y1+alto*0.07],
+                                       [x1+(x2-x1)*0.25,y1],[x2,y1]]
+      else                     perfil=[[x1,y1],[x2,y1]]
+
+      const izq=nodo(x1,SUELO,b.c), der=nodo(x2,SUELO,b.c)
+      const arr=perfil.map(([px,py])=>nodo(px,py,b.c))
+      estr.push([izq,arr[0]])
+      for(let i=0;i<arr.length-1;i++) estr.push([arr[i],arr[i+1]])
+      estr.push([arr[arr.length-1],der]); estr.push([izq,der])
+      const fa=nodo(x2+prof,SUELO-prof*0.5,b.c), fb=nodo(x2+prof,y1-prof*0.5,b.c)
+      estr.push([der,fa]); estr.push([fa,fb]); estr.push([arr[arr.length-1],fb])
+
+      if(pisos){
+        const n=Math.round(alto/(h*(pisos===2?0.022:0.040)))
+        for(let i=1;i<n;i++){ const yy=SUELO-alto*i/n
+          const a=nodo(x1,yy,b.c), c2=nodo(x2,yy,b.c), d2=nodo(x2+prof,yy-prof*0.5,b.c)
+          malla.push([a,c2]); malla.push([c2,d2])
+          if(ventanas) for(let k=0;k<3;k++) if(Math.random()<ventanas)
+            luces.push({x:x1+(x2-x1)*(0.22+k*0.28), y:yy-h*0.008, c:b.c,
+                        f:Math.random()*6.28, w:(x2-x1)*0.13, hh:h*0.007})
+        }
+        if(pisos===2) for(let k=1;k<3;k++){ const xx=x1+(x2-x1)*k/3
+          malla.push([nodo(xx,SUELO,b.c), nodo(xx,y1,b.c)]) }
+      }
+      if(b.t==='aspa'){
+        for(let i=0;i<5;i++){ const ya=SUELO-alto*i/5, yb=SUELO-alto*(i+1)/5
+          aspas.push([nodo(x1,ya,b.c), nodo(x2,yb,b.c)])
+          aspas.push([nodo(x2,ya,b.c), nodo(x1,yb,b.c)]) }
+      }
+      if(b.t==='rejilla')
+        for(let k=1;k<6;k++){ const xx=x1+(x2-x1)*k/6
+          malla.push([nodo(xx,SUELO,b.c), nodo(xx,y1,b.c)]) }
+      if(b.t==='corona'){
+        const cxx=(x1+x2)/2
+        const p1=nodo(cxx,y1,b.c), p2=nodo(cxx,y1-alto*0.13,b.c)
+        estr.push([p1,p2]); corona={i:p2}
+      }
+    }
+    for(let i=0;i<=8;i++){ const yy=SUELO+(h-SUELO)*Math.pow(i/8,1.7)
+      malla.push([nodo(0,yy,0), nodo(w,yy,0)]) }
   }
 
   function dibujar(dt){
-    const angosta = w < 900
-    if (!quieto) ang += VEL*dt
-    const sc = Math.min(w, h) * (angosta ? 0.52 : 0.50)
-    const cx = w * (angosta ? 0.5 : 0.34)
-    const cy = h * (angosta ? 0.33 : 0.50)
-    const cam = 3.1, foc = 2.05
-    const ca = Math.cos(ang), sa = Math.sin(ang)
-    // El radio y la fuerza del dedo van en proporción al tamaño de la torre. Con un
-    // radio fijo, en teléfono el dedo encendía el edificio entero.
-    const R2 = (sc*0.26)*(sc*0.26), FZ = FUERZA * sc/450
-
-    for (const v of V) {
-      const rx = v.x*ca - v.z*sa, rz = v.x*sa + v.z*ca
-      const k = foc/(rz+cam)
-      v.px = cx + rx*k*sc; v.py = cy - v.y*k*sc; v.k = k
-      const dx = v.px-pt.x, dy = v.py-pt.y, d2 = dx*dx+dy*dy
-      const f = pt.on && d2 < R2 ? (R2-d2)/R2 : 0
-      const L = Math.sqrt(d2) || 1
-      v.dx += ((f ? dx/L*FZ*f : 0) - v.dx)*0.13
-      v.dy += ((f ? dy/L*FZ*f : 0) - v.dy)*0.13
-      v.px += v.dx; v.py += v.dy; v.cerca = f
+    reloj += dt
+    // El radio del dedo va con el tamaño de la ciudad, no en píxeles fijos.
+    const R=ESC*0.30, R2=R*R
+    for(const v of V){
+      const resp = RESPIRA ? Math.sin(reloj*0.5 + v.bx*0.008)*RESPIRA*2.2 : 0
+      const bx=v.bx, by=v.by+resp
+      const dx=bx-pt.x, dy=by-pt.y, d2=dx*dx+dy*dy
+      const f0 = pt.on && d2<R2 ? (R2-d2)/R2 : 0
+      const f = f0*f0                       // se disuelve suave en vez de cortarse
+      const L=Math.sqrt(d2)||1, mult=0.55+v.c*0.30
+      v.dx += ((f? dx/L*DEFORMA*f*mult : 0) - v.dx)*0.14
+      v.dy += ((f? dy/L*DEFORMA*f*mult*0.7 : 0) - v.dy)*0.14
+      v.px = bx+v.dx; v.py = by+v.dy; v.cerca=f
     }
+    g.clearRect(0,0,w,h)
 
-    g.clearRect(0, 0, w, h)
-
-    for (const p of polvo) {
-      p.x += p.vx; p.y += p.vy
-      if (p.y < -6) { p.y = h+6; p.x = Math.random()*w }
-      g.globalAlpha = p.o; g.fillStyle = FRIO
-      g.beginPath(); g.arc(p.x, p.y, p.r, 0, 6.284); g.fill()
-    }
-
-    // 1 · La malla: textura, no línea.
     g.beginPath()
-    for (const [a,b] of malla) { const A=V[a], B=V[b]; if (!A||!B) continue
+    for(const [a,b] of malla){ const A=V[a],B=V[b]; if(!A||!B) continue
       g.moveTo(A.px,A.py); g.lineTo(B.px,B.py) }
-    g.strokeStyle = FRIO; g.globalAlpha = 0.08; g.lineWidth = 1; g.stroke()
+    g.strokeStyle=FRIO; g.globalAlpha=0.09; g.lineWidth=1; g.stroke()
 
-    // 2 · La estructura, en dos pasadas: lejos tenue, cerca marcada. Eso es el volumen.
-    for (const [lejos, alfa, grosor] of [[true, 0.17, 1], [false, 0.42, 1.15]]) {
+    for(let capa=0;capa<3;capa++){
       g.beginPath()
-      for (const [a,b] of estr) { const A=V[a], B=V[b]; if (!A||!B) continue
-        if (((A.k+B.k)/2 < 0.66) !== lejos) continue
-        if (A.cerca > 0.22 || B.cerca > 0.22) continue
+      for(const [a,b] of estr){ const A=V[a],B=V[b]; if(!A||!B||A.c!==capa) continue
+        if(A.cerca>0.14||B.cerca>0.14) continue
         g.moveTo(A.px,A.py); g.lineTo(B.px,B.py) }
-      g.strokeStyle = ESTRUCTURA; g.globalAlpha = alfa; g.lineWidth = grosor; g.stroke()
+      g.strokeStyle=ESTR; g.globalAlpha=ALFA[capa][0]; g.lineWidth=ALFA[capa][1]; g.stroke()
     }
+    g.beginPath()
+    for(const [a,b] of aspas){ const A=V[a],B=V[b]; if(!A||!B) continue
+      g.moveTo(A.px,A.py); g.lineTo(B.px,B.py) }
+    g.strokeStyle=TEAL; g.globalAlpha=0.30; g.lineWidth=1; g.stroke()
 
-    // 3 · Lo que toca el dedo.
-    g.lineWidth = 1.5
-    for (const [a,b] of estr) { const A=V[a], B=V[b]; if (!A||!B) continue
-      const c = Math.max(A.cerca, B.cerca); if (c <= 0.22) continue
-      g.strokeStyle = LIMA; g.globalAlpha = 0.35 + c*0.65
+    // Solo aquí se paga el brillo: son unas decenas de líneas, nunca cientos.
+    g.lineWidth=1.4; g.shadowColor=LIMA; g.shadowBlur=9
+    for(const [a,b] of estr){ const A=V[a],B=V[b]; if(!A||!B) continue
+      const c=Math.max(A.cerca,B.cerca); if(c<=0.14) continue
+      g.strokeStyle=LIMA; g.globalAlpha=0.25+c*0.72
       g.beginPath(); g.moveTo(A.px,A.py); g.lineTo(B.px,B.py); g.stroke() }
+    g.shadowBlur=0
 
-    // 4 · Los nodos, solo en las esquinas: dibujar 640 puntitos cuesta más que las líneas.
-    for (const v of V) {
-      if (!v.esq) continue
-      if (v.k < 0.6 && v.cerca < 0.05) continue
-      g.globalAlpha = v.cerca > 0.05 ? 0.55 + v.cerca*0.45 : 0.3
-      g.fillStyle = v.cerca > 0.2 ? LIMA : TEAL
-      g.beginPath(); g.arc(v.px, v.py, 1.1 + v.cerca*2.8, 0, 6.284); g.fill()
+    for(const L of luces){
+      g.globalAlpha = 0.20 + 0.16*Math.sin(reloj*0.8 + L.f)
+      g.fillStyle = LIMA; g.fillRect(L.x, L.y, L.w, L.hh)
     }
-    g.globalAlpha = 1
+    if(corona){ const v=V[corona.i]
+      g.globalAlpha=0.55+0.35*Math.sin(reloj*1.9); g.fillStyle=LIMA
+      g.beginPath(); g.arc(v.px,v.py,2.6,0,6.284); g.fill()
+      g.globalAlpha=0.13; g.beginPath(); g.arc(v.px,v.py,9,0,6.284); g.fill() }
+    g.globalAlpha=1
   }
 
-  // Válvula de seguridad: si el teléfono no aguanta, baja la densidad UNA vez y
-  // se queda ahí. Nadie ve una entrada entrecortada por un adorno.
-  let cuadros = 0, desde = 0, aligerado = false
+  // Válvula: si el aparato no sostiene 45 cuadros por segundo, aligera UNA vez.
+  let cuadros=0, desde=0, aligerado=false
   function vigilar(ms){
-    if (aligerado) return
-    if (!desde) { desde = ms; return }
+    if(aligerado) return
+    if(!desde){ desde=ms; return }
     cuadros++
-    if (ms - desde < 2500) return
-    const fps = cuadros*1000/(ms-desde)
-    if (fps < 45) { bays = 3; diagonales = false; aligerado = true; armar() }
-    cuadros = 0; desde = ms
+    if(ms-desde < 2500) return
+    if(cuadros*1000/(ms-desde) < 45){ pisos=0; ventanas=0.10; aligerado=true; armar() }
+    cuadros=0; desde=ms
   }
 
-  let previo = 0
+  let previo=0
   function bucle(ms){
-    if (!corriendo) return
-    const dt = previo ? Math.min(0.05, (ms-previo)/1000) : 0.016
-    previo = ms
-    dibujar(dt); vigilar(ms)
+    if(!corriendo) return
+    const dt = previo ? Math.min(0.05,(ms-previo)/1000) : 0.016
+    previo=ms; dibujar(dt); vigilar(ms)
     requestAnimationFrame(bucle)
   }
 
-  const mover = e => { const r = lienzo.getBoundingClientRect()
-    pt.x = e.clientX - r.left; pt.y = e.clientY - r.top; pt.on = true }
-  const entrada = document.getElementById('entrada')
-  entrada.addEventListener('pointermove', mover)
-  entrada.addEventListener('pointerdown', mover)
-  entrada.addEventListener('pointerleave', () => pt.on = false)
+  const entrada=document.getElementById('entrada')
+  const mover=e=>{ const r=lienzo.getBoundingClientRect()
+    pt.x=e.clientX-r.left; pt.y=e.clientY-r.top; pt.on=true }
+  entrada.addEventListener('pointermove',mover)
+  entrada.addEventListener('pointerdown',mover)
+  entrada.addEventListener('pointerleave',()=>pt.on=false)
 
   function encender(){
-    if (corriendo || entrada.classList.contains('oculto')) return
+    if(corriendo || entrada.classList.contains('oculto')) return
     armar()
-    if (quieto) { dibujar(0); return }   // Sin movimiento: una sola pasada, quieta.
-    corriendo = true; previo = 0; requestAnimationFrame(bucle)
+    if(quieto){ dibujar(0); return }
+    corriendo=true; previo=0; requestAnimationFrame(bucle)
   }
-  function apagar(){ corriendo = false }
+  function apagar(){ corriendo=false }
 
-  addEventListener('resize', () => { apagar(); requestAnimationFrame(() => { previo=0; encender() }) })
-  document.addEventListener('visibilitychange', () => document.hidden ? apagar() : encender())
-  new MutationObserver(() => entrada.classList.contains('oculto') ? apagar() : encender())
-    .observe(entrada, { attributes:true, attributeFilter:['class'] })
+  addEventListener('resize',()=>{ apagar(); requestAnimationFrame(()=>{ previo=0; encender() }) })
+  document.addEventListener('visibilitychange',()=>document.hidden?apagar():encender())
+  new MutationObserver(()=>entrada.classList.contains('oculto')?apagar():encender())
+    .observe(entrada,{attributes:true,attributeFilter:['class']})
   encender()
 })()
 
