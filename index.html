@@ -398,166 +398,200 @@ const SUPABASE_KEY = 'sb_publishable_623gFtuDfFpP_Ghi9KEjAA_jlqb3RDG'
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY)
 
 
-// ---------- Constelación de la entrada ----------
-// Miles de triángulos diminutos que se ordenan hasta formar una torre y luego
-// respiran. La forma NO está dibujada a mano punto por punto: se dibuja el edificio
-// en un lienzo invisible, se leen los píxeles que quedaron pintados y cada uno se
-// vuelve el destino de una partícula. Cambiar el edificio es cambiar el dibujo.
-;(function constelacion(){
+// ---------- La torre de la entrada ----------
+// Volumen en perspectiva real, no isométrico: lo que está lejos se dibuja más tenue
+// y más delgado, como en un render. Eso —y el giro— es lo que da la sensación de
+// volumen; no la cantidad de líneas.
+//
+// Combinación elegida por Carlos el 2026-09-25, probada en la página de mandos:
+//   masa PLACAS · densidad DENSA · giro LENTO · reacción al dedo MEDIA
+//
+// Hay DOS categorías de línea, y ahí está todo el diseño:
+//   · la ESTRUCTURA (losas y columnas) se ve — es la que dibuja el edificio;
+//   · la MALLA (montantes de fachada y diagonales) va al 8% — no se lee como línea,
+//     se lee como textura. Es lo que da «más cargado» sin cargar nada.
+// Lo que toca el dedo sube a lima, y nunca son más de unas decenas de líneas.
+//
+// Cada categoría se traza de UN SOLO JALÓN: son tres operaciones de dibujo por cuadro,
+// no setecientas. Es lo que deja meter ~750 líneas sin que el teléfono se ahogue.
+;(function torre(){
   const lienzo = document.getElementById('constelacion')
   if (!lienzo) return
-  const ctx = lienzo.getContext('2d', { alpha:true })
+  const g = lienzo.getContext('2d', { alpha:true })
   const quieto = matchMedia('(prefers-reduced-motion: reduce)').matches
-  const TONOS = ['#D0FB57','#D0FB57','#2FD4B8','#2FD4B8','#FFFFFF','#8FB8FF','#FFC46B']
-  let P = [], amb = [], an = 0, t0 = 0, corriendo = false
+  const LIMA = '#D0FB57', TEAL = '#2FD4B8', FRIO = '#8FA0BE', ESTRUCTURA = '#A8B6CC'
+  const NIV = 20, ALT = 0.108, FUERZA = 15, VEL = 0.055
 
-  // El edificio vive como una lista de trazos en una caja de 1000x1000, y los puntos
-  // se reparten A LO LARGO de esos trazos, a distancia pareja. Antes se dibujaba en
-  // un lienzo y se leían los píxeles: con pocas partículas la silueta se rompía en
-  // manchas y dejaba de leerse como torre. Repartir sobre el trazo la sostiene
-  // siempre, con 300 partículas o con 600.
-  const SUELO = 880
-  function trazos(){
-    const T = []
-    const torres = [
-      { x1:150, x2:330, y:455, piso:70 },
-      { x1:385, x2:640, y:255, piso:66, remate:true },
-      { x1:695, x2:875, y:545, piso:74 },
-    ]
-    for (const t of torres) {
-      T.push(t.remate
-        // Retranqueo escalonado, no diagonal: es el remate que piden en varias
-        // zonas de Guadalajara y se lee como edificio, no como cúpula.
-        ? [[t.x1,SUELO],[t.x1,t.y+110],[t.x1+58,t.y+110],[t.x1+58,t.y],
-           [t.x2-58,t.y],[t.x2-58,t.y+110],[t.x2,t.y+110],[t.x2,SUELO]]
-        : [[t.x1,SUELO],[t.x1,t.y],[t.x2,t.y],[t.x2,SUELO]])
-      // Una losa de cada dos: suficientes para que se lea vertical, no tantas que
-      // se vuelva ruido.
-      let n = 0
-      for (let y = t.y + t.piso*1.5; y < SUELO - 14; y += t.piso, n++)
-        if (n % 2 === 0) T.push([[t.x1+14,y],[t.x2-14,y]])
-      // Ventanas encendidas: un punto cada una, salteadas.
-      const cols = Math.max(2, Math.round((t.x2-t.x1)/70))
-      let m = 0
-      for (let y = t.y + t.piso*1.2; y < SUELO - t.piso*0.5; y += t.piso, m++)
-        for (let c = 0; c < cols; c++)
-          if ((m + c) % 3 === 0)
-            T.push([[t.x1+30+c*((t.x2-t.x1-60)/Math.max(1,cols-1)), y]])
-    }
-    T.push([[512,255],[512,150]])            // antena
-    T.push([[80,SUELO],[920,SUELO]])         // suelo
-    return T
-  }
+  let V = [], estr = [], malla = [], polvo = []
+  let w = 0, h = 0, ang = 0.6, bays = 5, diagonales = true
+  let corriendo = false, pt = { x:-9e9, y:-9e9, on:false }
 
-  // Reparte puntos cada `paso` unidades a lo largo de cada trazo.
-  function destinos(paso){
-    const pts = []
-    for (const tr of trazos()) {
-      if (tr.length === 1) { pts.push(tr[0]); continue }
-      let sobra = 0
-      for (let i = 0; i < tr.length - 1; i++) {
-        const [ax,ay] = tr[i], [bx,by] = tr[i+1]
-        const L = Math.hypot(bx-ax, by-ay)
-        for (let d = sobra; d < L; d += paso)
-          pts.push([ax + (bx-ax)*d/L, ay + (by-ay)*d/L])
-        sobra = (Math.ceil((L - sobra)/paso)*paso + sobra) - L
-      }
-      pts.push(tr[tr.length-1])
-    }
-    return pts
+  // Dos placas corridas: la izquierda llega al nivel 13, la derecha al 19.
+  const masa = n => {
+    const c = []
+    if (n < 13) c.push({ w:0.26, d:0.22, x:-0.30, z:-0.12 })
+    if (n < 19) c.push({ w:0.26, d:0.22, x: 0.30, z: 0.12 })
+    return c
   }
 
   function armar(){
-    const w = lienzo.clientWidth, h = lienzo.clientHeight
+    w = lienzo.clientWidth; h = lienzo.clientHeight
     const dpr = Math.min(2, devicePixelRatio || 1)
     lienzo.width = Math.round(w*dpr); lienzo.height = Math.round(h*dpr)
-    ctx.setTransform(dpr,0,0,dpr,0,0)
+    g.setTransform(dpr, 0, 0, dpr, 0, 0)
 
-    // Dónde se planta la torre. En pantalla ancha, a la izquierda del formulario;
-    // en teléfono, arriba de él. Son las mismas dos fracciones que usa el CSS.
-    const ancha = w >= 900
-    const lado = ancha ? Math.min(w*0.42, h*0.82, 640)
-                       : Math.min(w*0.94, h*0.46)
-    const cx = ancha ? 0.34 : 0.5
-    const cy = ancha ? 0.50 : 0.30
-    const u = lado/1000
-    const pts = destinos(ancha ? 9 : 15).map(q => [q[0]*u, q[1]*u])
-    const ox = w*cx - lado/2, oy = h*cy - lado/2
+    V = []; estr = []; malla = []
+    const pilas = []
+    for (let n = 0; n < NIV; n++) {
+      masa(n).forEach((c, ci) => {
+        if (!pilas[ci]) pilas[ci] = []
+        const y = n*ALT - NIV*ALT/2
+        const esq = [[-c.w,-c.d],[c.w,-c.d],[c.w,c.d],[-c.w,c.d]]
+        const iesq = esq.map(([a,b]) => {
+          V.push({ x:a+c.x, y, z:b+c.z, dx:0, dy:0, esq:true }); return V.length-1 })
+        const imull = []
+        for (let k = 0; k < 4; k++) {
+          const fila = [], A = esq[k], B = esq[(k+1)%4]
+          for (let t = 1; t < bays; t++) {
+            const f = t/bays
+            V.push({ x:A[0]+(B[0]-A[0])*f+c.x, y, z:A[1]+(B[1]-A[1])*f+c.z, dx:0, dy:0 })
+            fila.push(V.length-1)
+          }
+          imull.push(fila)
+        }
+        pilas[ci].push({ esq:iesq, mull:imull, n })
+      })
+    }
+    for (const pila of pilas)
+      for (let i = 0; i < pila.length; i++) {
+        const P = pila[i], Q = pila[i-1]
+        for (let k = 0; k < 4; k++) estr.push([P.esq[k], P.esq[(k+1)%4]])
+        if (Q && Q.n === P.n-1) {
+          for (let k = 0; k < 4; k++) estr.push([Q.esq[k], P.esq[k]])
+          for (let k = 0; k < 4; k++)
+            for (let t = 0; t < P.mull[k].length && t < Q.mull[k].length; t++)
+              malla.push([Q.mull[k][t], P.mull[k][t]])
+          if (diagonales && P.n % 3 === 0)
+            for (let k = 0; k < 4; k++) malla.push([Q.esq[k], P.esq[(k+1)%4]])
+        }
+      }
 
-    P = pts.map((q, i) => ({
-      dx: ox + q[0], dy: oy + q[1],
-      x: w/2 + (Math.random()-0.5)*w*1.5, y: h/2 + (Math.random()-0.5)*h*1.5,
-      r: Math.random()*Math.PI, vr: (Math.random()-0.5)*0.012,
-      t: 1.1 + Math.random()*1.8, f: Math.random()*Math.PI*2,
-      a: 2.1 + Math.random()*1.9, c: TONOS[i % TONOS.length],
-      o: 0.45 + Math.random()*0.45, d: Math.random()*0.5,
-    }))
-    amb = Array.from({length: ancha ? 46 : 22}, () => ({
+    const angosta = w < 900
+    polvo = Array.from({ length: angosta ? 14 : 26 }, () => ({
       x: Math.random()*w, y: Math.random()*h,
-      vx: (Math.random()-0.5)*0.12, vy: -0.05 - Math.random()*0.12,
-      r: Math.random()*Math.PI, vr: (Math.random()-0.5)*0.008,
-      a: 1.6 + Math.random()*2, c: TONOS[(Math.random()*TONOS.length)|0],
-      o: 0.06 + Math.random()*0.14,
+      vx: (Math.random()-0.5)*0.1, vy: -0.04 - Math.random()*0.1,
+      r: 0.8 + Math.random()*1.1, o: 0.05 + Math.random()*0.1,
     }))
   }
 
-  function triangulo(p, alfa){
-    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.r)
-    ctx.beginPath()
-    ctx.moveTo(0, -p.a); ctx.lineTo(p.a*0.87, p.a*0.5); ctx.lineTo(-p.a*0.87, p.a*0.5)
-    ctx.closePath()
-    ctx.strokeStyle = p.c; ctx.globalAlpha = alfa; ctx.lineWidth = 1
-    ctx.stroke(); ctx.restore()
-  }
+  function dibujar(dt){
+    const angosta = w < 900
+    if (!quieto) ang += VEL*dt
+    const sc = Math.min(w, h) * (angosta ? 0.52 : 0.50)
+    const cx = w * (angosta ? 0.5 : 0.34)
+    const cy = h * (angosta ? 0.33 : 0.50)
+    const cam = 3.1, foc = 2.05
+    const ca = Math.cos(ang), sa = Math.sin(ang)
+    // El radio y la fuerza del dedo van en proporción al tamaño de la torre. Con un
+    // radio fijo, en teléfono el dedo encendía el edificio entero.
+    const R2 = (sc*0.26)*(sc*0.26), FZ = FUERZA * sc/450
 
-  function cuadro(ms){
-    if (!t0) t0 = ms
-    const s = (ms - t0) / 1000
-    ctx.clearRect(0, 0, lienzo.clientWidth, lienzo.clientHeight)
-
-    for (const p of amb) {
-      p.x += p.vx; p.y += p.vy; p.r += p.vr
-      if (p.y < -12) { p.y = lienzo.clientHeight + 12; p.x = Math.random()*lienzo.clientWidth }
-      if (p.x < -12) p.x = lienzo.clientWidth + 12
-      if (p.x > lienzo.clientWidth + 12) p.x = -12
-      triangulo(p, p.o)
+    for (const v of V) {
+      const rx = v.x*ca - v.z*sa, rz = v.x*sa + v.z*ca
+      const k = foc/(rz+cam)
+      v.px = cx + rx*k*sc; v.py = cy - v.y*k*sc; v.k = k
+      const dx = v.px-pt.x, dy = v.py-pt.y, d2 = dx*dx+dy*dy
+      const f = pt.on && d2 < R2 ? (R2-d2)/R2 : 0
+      const L = Math.sqrt(d2) || 1
+      v.dx += ((f ? dx/L*FZ*f : 0) - v.dx)*0.13
+      v.dy += ((f ? dy/L*FZ*f : 0) - v.dy)*0.13
+      v.px += v.dx; v.py += v.dy; v.cerca = f
     }
 
-    for (const p of P) {
-      // Llegada con desaceleración, y después una respiración que nunca se detiene.
-      const k = Math.min(1, Math.max(0, (s - p.d) / 1.5))
-      const e = 1 - Math.pow(1 - k, 3)
-      const resp = e === 1 ? 1 : 0
-      const bx = Math.cos(s*0.45 + p.f) * p.t * resp
-      const by = Math.sin(s*0.38 + p.f*1.7) * p.t * resp
-      p.x = p.x + ((p.dx + bx) - p.x) * (e < 1 ? 0.12 : 0.06)
-      p.y = p.y + ((p.dy + by) - p.y) * (e < 1 ? 0.12 : 0.06)
-      p.r += p.vr
-      triangulo(p, p.o * Math.min(1, e*1.3))
+    g.clearRect(0, 0, w, h)
+
+    for (const p of polvo) {
+      p.x += p.vx; p.y += p.vy
+      if (p.y < -6) { p.y = h+6; p.x = Math.random()*w }
+      g.globalAlpha = p.o; g.fillStyle = FRIO
+      g.beginPath(); g.arc(p.x, p.y, p.r, 0, 6.284); g.fill()
     }
-    if (corriendo) requestAnimationFrame(cuadro)
+
+    // 1 · La malla: textura, no línea.
+    g.beginPath()
+    for (const [a,b] of malla) { const A=V[a], B=V[b]; if (!A||!B) continue
+      g.moveTo(A.px,A.py); g.lineTo(B.px,B.py) }
+    g.strokeStyle = FRIO; g.globalAlpha = 0.08; g.lineWidth = 1; g.stroke()
+
+    // 2 · La estructura, en dos pasadas: lejos tenue, cerca marcada. Eso es el volumen.
+    for (const [lejos, alfa, grosor] of [[true, 0.17, 1], [false, 0.42, 1.15]]) {
+      g.beginPath()
+      for (const [a,b] of estr) { const A=V[a], B=V[b]; if (!A||!B) continue
+        if (((A.k+B.k)/2 < 0.66) !== lejos) continue
+        if (A.cerca > 0.22 || B.cerca > 0.22) continue
+        g.moveTo(A.px,A.py); g.lineTo(B.px,B.py) }
+      g.strokeStyle = ESTRUCTURA; g.globalAlpha = alfa; g.lineWidth = grosor; g.stroke()
+    }
+
+    // 3 · Lo que toca el dedo.
+    g.lineWidth = 1.5
+    for (const [a,b] of estr) { const A=V[a], B=V[b]; if (!A||!B) continue
+      const c = Math.max(A.cerca, B.cerca); if (c <= 0.22) continue
+      g.strokeStyle = LIMA; g.globalAlpha = 0.35 + c*0.65
+      g.beginPath(); g.moveTo(A.px,A.py); g.lineTo(B.px,B.py); g.stroke() }
+
+    // 4 · Los nodos, solo en las esquinas: dibujar 640 puntitos cuesta más que las líneas.
+    for (const v of V) {
+      if (!v.esq) continue
+      if (v.k < 0.6 && v.cerca < 0.05) continue
+      g.globalAlpha = v.cerca > 0.05 ? 0.55 + v.cerca*0.45 : 0.3
+      g.fillStyle = v.cerca > 0.2 ? LIMA : TEAL
+      g.beginPath(); g.arc(v.px, v.py, 1.1 + v.cerca*2.8, 0, 6.284); g.fill()
+    }
+    g.globalAlpha = 1
   }
+
+  // Válvula de seguridad: si el teléfono no aguanta, baja la densidad UNA vez y
+  // se queda ahí. Nadie ve una entrada entrecortada por un adorno.
+  let cuadros = 0, desde = 0, aligerado = false
+  function vigilar(ms){
+    if (aligerado) return
+    if (!desde) { desde = ms; return }
+    cuadros++
+    if (ms - desde < 2500) return
+    const fps = cuadros*1000/(ms-desde)
+    if (fps < 45) { bays = 3; diagonales = false; aligerado = true; armar() }
+    cuadros = 0; desde = ms
+  }
+
+  let previo = 0
+  function bucle(ms){
+    if (!corriendo) return
+    const dt = previo ? Math.min(0.05, (ms-previo)/1000) : 0.016
+    previo = ms
+    dibujar(dt); vigilar(ms)
+    requestAnimationFrame(bucle)
+  }
+
+  const mover = e => { const r = lienzo.getBoundingClientRect()
+    pt.x = e.clientX - r.left; pt.y = e.clientY - r.top; pt.on = true }
+  const entrada = document.getElementById('entrada')
+  entrada.addEventListener('pointermove', mover)
+  entrada.addEventListener('pointerdown', mover)
+  entrada.addEventListener('pointerleave', () => pt.on = false)
 
   function encender(){
-    if (corriendo) return
-    if (document.getElementById('entrada').classList.contains('oculto')) return
+    if (corriendo || entrada.classList.contains('oculto')) return
     armar()
-    if (quieto) {                      // Sin movimiento: se dibuja la torre ya armada.
-      for (const p of P) { p.x = p.dx; p.y = p.dy }
-      ctx.clearRect(0,0,lienzo.clientWidth,lienzo.clientHeight)
-      for (const p of P) triangulo(p, p.o)
-      return
-    }
-    corriendo = true; t0 = 0; requestAnimationFrame(cuadro)
+    if (quieto) { dibujar(0); return }   // Sin movimiento: una sola pasada, quieta.
+    corriendo = true; previo = 0; requestAnimationFrame(bucle)
   }
   function apagar(){ corriendo = false }
 
-  // Solo gasta batería mientras la entrada está a la vista.
-  addEventListener('resize', () => { if (corriendo || quieto) { apagar(); requestAnimationFrame(encender) } })
+  addEventListener('resize', () => { apagar(); requestAnimationFrame(() => { previo=0; encender() }) })
   document.addEventListener('visibilitychange', () => document.hidden ? apagar() : encender())
-  new MutationObserver(() => document.getElementById('entrada').classList.contains('oculto')
-    ? apagar() : encender()
-  ).observe(document.getElementById('entrada'), { attributes:true, attributeFilter:['class'] })
+  new MutationObserver(() => entrada.classList.contains('oculto') ? apagar() : encender())
+    .observe(entrada, { attributes:true, attributeFilter:['class'] })
   encender()
 })()
 
