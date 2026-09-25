@@ -206,6 +206,12 @@
     background:linear-gradient(90deg, var(--acento) 0%, var(--lima) 100%)}
   .preliminar{display:inline-block;background:var(--aviso-bg);color:var(--aviso-texto);
     font-size:11px;font-weight:600;padding:4px 9px;border-radius:99px;margin-top:12px}
+  .enCamino{background:var(--acento-suave);border-left:3px solid var(--acento);
+    border-radius:0 9px 9px 0;padding:11px 13px;margin-top:14px;font-size:13.5px;line-height:1.5;
+    color:var(--texto)}
+  .enCamino b{color:var(--acento);font-weight:700}
+  .espera{display:inline-block;background:var(--aviso-bg);color:var(--aviso-texto);
+    font-size:10.5px;font-weight:600;padding:3px 8px;border-radius:99px;margin-top:6px}
 
   .datos{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px}
   .datos div span{display:block;font-size:11px;color:var(--tenue2);margin-bottom:1px}
@@ -728,7 +734,7 @@ async function cargar(){
       esquema, cajones_desc, bodega_desc, fecha_firma, referencia_pago,
       unidades ( numero, nivel,
         modelos ( id, nombre, recamaras, banos, superficie_m2, construccion_m2, terraza_m2,
-                  precio_lista_actual, precio_lista_fecha_corte,
+                  precio_lista_actual, precio_lista_fecha_corte, sin_incremento,
                   precio_lista_nivel_base, precio_lista_incremento_nivel ),
         torres ( id, nombre, entrega_estimada, entrega_contrato,
           desarrollos ( nombre, desarrollador, zona ) ) )
@@ -745,7 +751,7 @@ async function cargar(){
   }
 
   const [{ data: pagos }, { data: docs }, { data: avances }, { data: zonas }, { data: fichas }] = await Promise.all([
-    sb.from('pagos').select('fecha, concepto, monto, forma_pago, banco_parcial, num_recibo')
+    sb.from('pagos').select('fecha, concepto, monto, forma_pago, banco_parcial, num_recibo, estado')
       .order('fecha', { ascending: true }),
     sb.from('documentos').select('tipo, nombre, storage_path').order('tipo'),
     sb.from('avances_obra')
@@ -772,6 +778,13 @@ function pintar(cliente, c, pagos, docs, avance, zona, ficha){
   const u = c.unidades, m = u.modelos, t = u.torres, d = t.desarrollos
 
   // ===== 1. PAGOS =====
+  // Un pago existe desde que el cliente transfiere, aunque el desarrollador no lo haya
+  // conciliado todavía. Son dos cosas distintas y el portal las separa:
+  //   · el CONTEO de mensualidades usa todos los pagos registrados —si no, el portal le
+  //     seguiría cobrando una mensualidad que ya pagó, que es peor que cualquier error;
+  //   · el TOTAL CONFIRMADO solo sube cuando el desarrollador conciliar. Ver C-21.
+  const enEspera = pagos.filter(p => p.estado === 'en_espera')
+  const montoEspera = enEspera.reduce((a,p) => a + Number(p.monto), 0)
   const pagadasMens = pagos.filter(p => /mensualidad/i.test(p.concepto)).length
   const faltan = (c.num_mensualidades || 0) - pagadasMens
   let hero
@@ -802,7 +815,9 @@ function pintar(cliente, c, pagos, docs, avance, zona, ficha){
   const filaMov = p => `<div class="mov">
       <div class="izq"><div class="c">${esc(p.concepto)}</div>
         <div class="d">${fechaCorta(p.fecha)}${p.forma_pago ? ' · ' + esc(p.forma_pago) : ''}${
-          p.banco_parcial && p.banco_parcial !== '—' ? ' · ' + esc(p.banco_parcial) : ''}</div></div>
+          p.banco_parcial && p.banco_parcial !== '—' ? ' · ' + esc(p.banco_parcial) : ''}</div>
+        ${p.estado === 'en_espera'
+          ? `<div class="espera">En espera de confirmación del desarrollador</div>` : ''}</div>
       <div class="der"><div class="m">${dinero(p.monto)}</div>
         ${p.num_recibo ? `<div class="r">recibo ${esc(p.num_recibo)}</div>` : ''}</div></div>`
 
@@ -887,6 +902,9 @@ function pintar(cliente, c, pagos, docs, avance, zona, ficha){
           <div class="k">del valor de tu unidad</div></div>
       </div>
       <div class="barra"><span style="width:${total ? Math.min(100,pagado/total*100) : 0}%"></span></div>
+      ${montoEspera ? `<div class="enCamino">
+        <b>${dinero(montoEspera)}</b> más, en espera de confirmación del desarrollador.
+        Ya tenemos tu comprobante; en cuanto lo concilien se suma a esta cifra.</div>` : ''}
       ${c.pagado_es_preliminar
         ? `<span class="preliminar">Cifra preliminar · en confirmación con el desarrollador</span>` : ''}
       <div class="corte">${c.pagado_fecha_corte
@@ -898,13 +916,15 @@ function pintar(cliente, c, pagos, docs, avance, zona, ficha){
     <div class="tarjeta">
       <div class="etiqueta">Movimientos identificados</div>
       ${movs}
-      <div class="corte">${pagos.length} ${pagos.length===1?'movimiento':'movimientos'}
-        · suman ${dinero(pagos.reduce((a,p)=>a+Number(p.monto),0))}</div>
+      <div class="corte">${pagos.length} ${pagos.length===1?'movimiento':'movimientos'}${
+        montoEspera
+          ? ` · ${dinero(pagado)} confirmados y ${dinero(montoEspera)} en espera`
+          : ` · suman ${dinero(pagos.reduce((a,p)=>a+Number(p.monto),0))}`}</div>
     </div>
     ${vistaDeposito}`
 
   // ===== 2. OBRA =====
-  const ETAPAS = ['Cimentación','Estructura','Acabados']
+  const ETAPAS = ['Demolición','Cimentación','Estructura','Acabados']
   let vistaObra
   if (!avance) {
     vistaObra = `<div class="tarjeta"><p class="vacio">Todavía no hay un reporte de avance cargado.
@@ -927,10 +947,15 @@ function pintar(cliente, c, pagos, docs, avance, zona, ficha){
 
     // El porcentaje va como número + barra, no como dona: es un solo valor contra
     // un total. Y usa la misma barra que "lo que llevas pagado" — un solo idioma visual.
-    const cifra = avance.porcentaje != null
-      ? `<div class="avanceCifra"><b>${avance.porcentaje}%</b><span>de avance</span></div>
-         <div class="barra" style="margin-bottom:14px">
-           <span style="width:${Math.min(100,avance.porcentaje)}%"></span></div>` : ''
+    // Una obra en cero no es «sin información»: es una obra que todavía no arranca,
+    // y decirlo con la barra vacía es más claro que un porcentaje en cero.
+    const arranca = Number(avance.porcentaje) === 0
+    const cifra = avance.porcentaje == null ? ''
+      : arranca
+        ? `<div class="barra" style="margin-bottom:14px"><span style="width:0%"></span></div>`
+        : `<div class="avanceCifra"><b>${avance.porcentaje}%</b><span>de avance</span></div>
+           <div class="barra" style="margin-bottom:14px">
+             <span style="width:${Math.min(100,avance.porcentaje)}%"></span></div>`
 
     // Los trabajos vienen por rango de pisos. Como el portal sabe en qué nivel está
     // este cliente, le marca SU renglón: la diferencia entre leer un reporte de la
@@ -948,9 +973,12 @@ function pintar(cliente, c, pagos, docs, avance, zona, ficha){
 
     vistaObra = `<div class="tarjeta">
       ${cifra}
-      <div class="etapa">${esc(avance.etapa || 'En construcción')}</div>
+      <div class="etapa">${arranca
+        ? 'Por comenzar · ' + esc(avance.etapa || 'Demolición')
+        : esc(avance.etapa || 'En construcción')}</div>
       <div style="font-size:13px;color:var(--tenue)">
-        Reportado por el desarrollador en ${mesAnio(avance.fecha)}</div>
+        ${arranca ? 'Última actualización del desarrollador: ' + fecha(avance.fecha)
+                  : 'Reportado por el desarrollador en ' + mesAnio(avance.fecha)}</div>
       <div class="etapas">${tramos}</div>
       ${trabajos}
       <div class="fotos" id="fotosObra"></div>
@@ -1007,7 +1035,35 @@ function pintar(cliente, c, pagos, docs, avance, zona, ficha){
       + (u.nivel - m.precio_lista_nivel_base) * Number(m.precio_lista_incremento_nivel)
   }
   let vistaInversion
-  if (listaAntes == null || listaHoy == null) {
+  // Que la lista no haya subido NO es falta de información: es información. Decir
+  // «estamos actualizando» cuando sabemos que no ha cambiado sería mentir por omisión.
+  if (listaAntes != null && m.sin_incremento) {
+    vistaInversion = `<div class="tarjeta">
+      <div class="etiqueta">Tu departamento hoy</div>
+      <div class="compara"><div class="k">Precio de lista cuando compraste
+        <small>${c.fecha_firma ? mesAnio(c.fecha_firma) : ''}</small></div>
+        <div class="v">${dinero(listaAntes)}</div></div>
+      <div class="compara"><div class="k">Lo que pagaste
+        <small>ya con el descuento de tu forma de pago</small></div>
+        <div class="v">${dinero(c.precio_departamento)}</div></div>
+      <div class="compara"><div class="k">Precio de lista hoy
+        <small>mismo modelo, mismo nivel</small></div>
+        <div class="v">${dinero(listaAntes)}</div></div>
+      <div class="resalta">
+        <div class="k">El desarrollador todavía no aplica incremento de precios</div>
+        <div class="v" style="font-size:15px;line-height:1.5">
+          Tu departamento sigue en la lista al mismo precio con el que lo adquiriste.</div>
+      </div>
+      ${Number(listaAntes) - Number(c.precio_departamento) > 0
+        ? `<div class="resalta" style="margin-top:8px">
+             <div class="k">Lo que te ahorraste, por tu forma de pago</div>
+             <div class="v">${dinero(Number(listaAntes) - Number(c.precio_departamento))}</div>
+           </div>` : ''}
+      <div class="corte">Última actualización: ${m.precio_lista_fecha_corte
+        ? fecha(m.precio_lista_fecha_corte) : '—'}. Revisamos la lista con el desarrollador cada
+        mes y aquí se actualiza en cuanto cambie.</div>
+    </div>`
+  } else if (listaAntes == null || listaHoy == null) {
     vistaInversion = `<div class="tarjeta">
       <div class="etiqueta">Tu departamento hoy</div>
       <p class="vacio">
