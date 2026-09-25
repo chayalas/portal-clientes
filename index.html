@@ -25,8 +25,13 @@
     --hero-bg:#282D3A; --hero-linea:#3A4152; --hero-texto:#B7BECB; --hero-tenue:#8A93A2;
     --suave:#F4F6F8; --pista:#EDF0F3; --relleno:#282D3A;
     --aviso-bg:#FEF3C7; --aviso-texto:#B45309;
+    --ok-bg:#E7F6EC; --ok-texto:#1B7A43;
     --sombra:0 1px 2px rgba(40,45,58,.04), 0 4px 14px rgba(40,45,58,.05);
     --radio:14px;
+    /* El ancho del contenido y el margen lateral crecen con la pantalla. En teléfono
+       el margen es mínimo porque cada píxel cuenta; en monitor se abre, porque una
+       columna angosta pegada al borde izquierdo se ve desproporcionada. */
+    --ancho:1000px; --margen:16px; --lateral:210px;
     --fuente:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   }
   html[data-modo="oscuro"]{
@@ -35,9 +40,15 @@
     --hero-bg:#2E3442; --hero-linea:#434B5C; --hero-texto:#C4CBD6; --hero-tenue:#8F98A6;
     --suave:#2A2F3B; --pista:#333A48; --relleno:#D0FB57;
     --aviso-bg:#3A2F14; --aviso-texto:#F3C969;
+    --ok-bg:#16301F; --ok-texto:#6FD49A;
     --sombra:0 1px 2px rgba(0,0,0,.25), 0 4px 14px rgba(0,0,0,.2);
     color-scheme:dark;
   }
+  @media (min-width:640px){  :root{ --margen:28px } }
+  @media (min-width:1100px){ :root{ --ancho:1140px; --margen:40px } }
+  @media (min-width:1440px){ :root{ --ancho:1260px; --margen:56px; --lateral:230px } }
+  @media (min-width:1800px){ :root{ --ancho:1360px; --margen:72px } }
+
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:var(--fuente);background:var(--fondo);color:var(--texto);line-height:1.5;
        -webkit-font-smoothing:antialiased;transition:background .2s,color .2s}
@@ -83,7 +94,7 @@
   #cargando{padding:90px 20px;text-align:center;color:var(--tenue)}
   .barraSup{position:sticky;top:0;z-index:20;background:var(--fondo);
     border-bottom:1px solid var(--linea)}
-  .barraSup .fila{max-width:1000px;margin:0 auto;padding:15px 16px;
+  .barraSup .fila{max-width:var(--ancho);margin:0 auto;padding:15px var(--margen);
     display:flex;align-items:center;justify-content:space-between;gap:10px}
   .barraSup .marca{margin:0}
   .barraSup .marca b{color:var(--texto);font-size:17px}
@@ -96,7 +107,7 @@
   .modo:hover,.salir:hover{background:var(--suave)}
 
   /* Menú: en teléfono es una tira horizontal; en pantalla ancha, columna lateral */
-  .menu{max-width:1000px;margin:0 auto;padding:0 16px 12px;display:flex;gap:6px;
+  .menu{max-width:var(--ancho);margin:0 auto;padding:0 var(--margen) 12px;display:flex;gap:6px;
     overflow-x:auto;scrollbar-width:none}
   .menu::-webkit-scrollbar{display:none}
   .menu button{flex:0 0 auto;background:none;border:1px solid transparent;border-radius:99px;
@@ -106,7 +117,7 @@
   .menu button[aria-current="true"]{background:var(--navy);color:#fff}
   html[data-modo="oscuro"] .menu button[aria-current="true"]{background:var(--lima);color:var(--navy)}
 
-  #portal{max-width:1000px;margin:0 auto;padding:18px 16px 60px}
+  #portal{max-width:var(--ancho);margin:0 auto;padding:18px var(--margen) 70px}
   .saludo{font-size:13px;color:var(--tenue)}
   .nombre{font-size:23px;font-weight:700;letter-spacing:-.02em;margin-bottom:18px}
   .vista{animation:entra .22s ease}
@@ -115,11 +126,19 @@
     color:var(--tenue2);font-weight:700;margin-bottom:12px}
 
   @media (min-width:900px){
-    .menu{position:fixed;left:max(16px,calc(50vw - 500px));top:150px;width:190px;
+    .menu{position:fixed;top:150px;width:calc(var(--lateral) - 22px);
+      left:max(var(--margen), calc(50vw - var(--ancho)/2 + var(--margen)));
       flex-direction:column;padding:0;gap:3px;overflow:visible}
     .menu button{text-align:left;width:100%;border-radius:10px;padding:10px 13px}
-    #portal{padding-left:222px}
+    #portal{padding-left:calc(var(--margen) + var(--lateral))}
     .barraSup{border-bottom:0}
+  }
+  /* En monitor el texto también sube un punto: mismo diseño, no una versión
+     estirada del teléfono. */
+  @media (min-width:1100px){
+    .nombre{font-size:27px}
+    .tarjeta{padding:22px}
+    .hero{padding:26px}
   }
 
   /* ---------------- Piezas ---------------- */
@@ -232,6 +251,37 @@
   .compara .k small{display:block;font-size:11.5px;color:var(--tenue2);margin-top:2px}
   .compara .v{font-size:17px;font-weight:700;white-space:nowrap}
   .resalta{background:var(--suave);border-radius:10px;padding:14px;margin-top:14px}
+
+  /* Banner de tres columnas: en teléfono se apila, en pantalla se reparte. */
+  .tres{display:grid;grid-template-columns:1fr;gap:2px}
+  .tres>div{padding:14px 0;border-bottom:1px solid var(--linea)}
+  .tres>div:last-child{border-bottom:0;padding-bottom:0}
+  .tres>div:first-child{padding-top:0}
+  @media (min-width:560px){
+    .tres{grid-template-columns:repeat(3,1fr);gap:0}
+    .tres>div{padding:0 18px;border-bottom:0;border-left:1px solid var(--linea)}
+    .tres>div:first-child{padding:0 18px 0 0;border-left:0}
+    .tres>div:last-child{padding:0 0 0 18px}
+  }
+  .tres .k{font-size:12px;color:var(--tenue);margin-bottom:7px;line-height:1.35}
+  .tres .v{font-size:16px;font-weight:700;display:flex;align-items:center;gap:7px}
+  .tres .d{font-size:12px;color:var(--tenue2);margin-top:4px}
+  .marca-ok,.marca-no,.marca-esp{display:inline-flex;align-items:center;justify-content:center;
+    width:21px;height:21px;border-radius:99px;font-size:12px;font-weight:700;flex:0 0 auto}
+  .marca-ok{background:var(--ok-bg);color:var(--ok-texto)}
+  .marca-esp{background:var(--aviso-bg);color:var(--aviso-texto)}
+  .marca-no{background:var(--pista);color:var(--tenue)}
+
+  /* Datos de depósito */
+  .deposito{display:grid;gap:11px}
+  .deposito .ren{display:flex;justify-content:space-between;align-items:baseline;gap:14px;
+    padding-bottom:11px;border-bottom:1px solid var(--linea)}
+  .deposito .ren:last-child{border-bottom:0;padding-bottom:0}
+  .deposito .ren b{font-size:15px;font-weight:700;text-align:right;
+    font-variant-numeric:tabular-nums;letter-spacing:.01em;word-break:break-all}
+  .deposito .ren span{font-size:13px;color:var(--tenue);flex:0 0 auto}
+  .cuidado{background:var(--aviso-bg);color:var(--aviso-texto);border-radius:10px;
+    padding:13px 14px;margin-top:15px;font-size:13.5px;line-height:1.5;font-weight:500}
   .resalta .k{font-size:13px;color:var(--tenue)}
   .resalta .v{font-size:26px;font-weight:700;letter-spacing:-.02em;margin-top:2px}
   .pie{font-size:12px;color:var(--tenue2);text-align:center;margin-top:26px;line-height:1.6}
@@ -430,13 +480,13 @@ $('btnSalir').addEventListener('click', async () => { await sb.auth.signOut(); l
 
 // ---------- Carga ----------
 async function cargar(){
-  const { data: cliente } = await sb.from('clientes').select('nombre').single()
+  const { data: cliente } = await sb.from('clientes').select('nombre, nombre_corto').single()
 
   const { data: compra, error } = await sb.from('compras').select(`
       id, precio_total, precio_departamento, precio_lista_al_comprar,
       pagado_confirmado, pagado_es_preliminar, pagado_fecha_corte,
       num_mensualidades, monto_mensualidad, dia_pago, primera_mensualidad,
-      esquema, cajones_desc, bodega_desc, fecha_firma,
+      esquema, cajones_desc, bodega_desc, fecha_firma, referencia_pago,
       unidades ( numero, nivel,
         modelos ( id, nombre, recamaras, banos, superficie_m2, construccion_m2, terraza_m2,
                   precio_lista_actual, precio_lista_fecha_corte,
@@ -445,7 +495,8 @@ async function cargar(){
           desarrollos ( nombre, desarrollador, zona ) ) )
     `).single()
 
-  $('nombre').textContent = cliente?.nombre || ''
+  $('nombre').textContent = cliente?.nombre_corto
+    || (cliente?.nombre || '').trim().split(/\s+/)[0] || ''
 
   if (error || !compra) {
     esconder('cargando'); ver('marco')
@@ -454,7 +505,7 @@ async function cargar(){
     return
   }
 
-  const [{ data: pagos }, { data: docs }, { data: avances }, { data: zonas }] = await Promise.all([
+  const [{ data: pagos }, { data: docs }, { data: avances }, { data: zonas }, { data: fichas }] = await Promise.all([
     sb.from('pagos').select('fecha, concepto, monto, forma_pago, banco_parcial, num_recibo')
       .order('fecha', { ascending: true }),
     sb.from('documentos').select('tipo, nombre, storage_path').order('tipo'),
@@ -465,14 +516,20 @@ async function cargar(){
     // Se guarda una vez por zona y sirve a todos: es la regla de arquitectura del proyecto.
     sb.from('zonas_mercado')
       .select('zona, nuevo_pesos_m2, existente_pesos_m2, prima_nuevo_pct, renta_1rec, renta_2rec, renta_3rec, fecha_corte, fuente')
-      .eq('zona', compra.unidades.torres.desarrollos.zona || '').limit(1)
+      .eq('zona', compra.unidades.torres.desarrollos.zona || '').limit(1),
+    // La ficha legal del desarrollo: licencia, factibilidades y a dónde deposita.
+    // La política de la base solo devuelve la del desarrollo donde el cliente compró.
+    sb.from('ficha_legal')
+      .select('licencia_estado, licencia_numero, licencia_municipio, licencia_fecha, factibilidad_luz, factibilidad_agua, deposito_banco, deposito_clabe, deposito_cuenta, deposito_titular, deposito_verificado, fuente, nota')
+      .limit(1)
   ])
 
-  pintar(cliente, compra, pagos || [], docs || [], (avances || [])[0] || null, (zonas || [])[0] || null)
+  pintar(cliente, compra, pagos || [], docs || [], (avances || [])[0] || null,
+         (zonas || [])[0] || null, (fichas || [])[0] || null)
 }
 
 // ---------- Pintado ----------
-function pintar(cliente, c, pagos, docs, avance, zona){
+function pintar(cliente, c, pagos, docs, avance, zona, ficha){
   const u = c.unidades, m = u.modelos, t = u.torres, d = t.desarrollos
 
   // ===== 1. PAGOS =====
@@ -486,7 +543,9 @@ function pintar(cliente, c, pagos, docs, avance, zona){
       <div class="monto">${dinero(c.monto_mensualidad)}</div>
       <div class="cuando">Vence el ${fecha(vence)}</div>
       <div class="nota">Mensualidad ${pagadasMens+1} de ${c.num_mensualidades}
-        · te faltan ${faltan} después de esta</div></div>`
+        · ${faltan === 1 ? 'es la última'
+          : faltan === 2 ? 'te falta 1 después de esta'
+          : `te faltan ${faltan-1} después de esta`}</div></div>`
   } else {
     // Ya terminó sus mensualidades: lo que sigue es liquidar contra entrega.
     // Nunca se le llama "próximo pago" a algo que no tiene fecha de cobro.
@@ -516,6 +575,67 @@ function pintar(cliente, c, pagos, docs, avance, zona){
          <div id="movResto" class="oculto">${orden.slice(VIS).map(filaMov).join('')}</div>
          <button class="masmov" id="btnMasMov">Ver los ${orden.length-VIS} movimientos anteriores</button>`
 
+  // ---- Banner de tres columnas: licencia, luz y agua ----
+  // Un solo lugar decide cómo se ve cada estado, para que "sí" signifique lo mismo
+  // en las tres columnas y en todos los desarrollos.
+  const SENAL = {
+    si:      ['<span class="marca-ok">&#10003;</span>',  'Sí'],
+    no:      ['<span class="marca-no">&ndash;</span>',   'No'],
+    proceso: ['<span class="marca-esp">&hellip;</span>', 'En proceso'],
+  }
+  const senal = v => SENAL[String(v || '').toLowerCase()] || null
+  const columna = (k, v, d) => `<div><div class="k">${k}</div>${v}${
+    d ? `<div class="d">${d}</div>` : ''}</div>`
+  const celda = v => {
+    const x = senal(v)
+    return x ? `<div class="v">${x[0]}${x[1]}</div>`
+             : `<div class="v" style="font-size:14px;color:var(--tenue)">Pendiente de confirmar</div>`
+  }
+
+  let bannerLegal = ''
+  if (ficha) {
+    const lic = ficha.licencia_estado || 'Pendiente de confirmar'
+    const licPie = [ficha.licencia_numero, ficha.licencia_municipio &&
+      ('Municipio de ' + ficha.licencia_municipio)].filter(Boolean).map(esc).join(' · ')
+    bannerLegal = `<div class="tarjeta">
+      <div class="etiqueta">Tu desarrollo, en regla</div>
+      <div class="tres">
+        ${columna('Licencia de construcción',
+            `<div class="v" style="${ficha.licencia_estado ? '' : 'font-size:14px;color:var(--tenue)'}">${esc(lic)}</div>`,
+            licPie)}
+        ${columna('Factibilidad de luz',  celda(ficha.factibilidad_luz),  'CFE')}
+        ${columna('Factibilidad de agua', celda(ficha.factibilidad_agua), 'SIAPA')}
+      </div>
+      ${ficha.nota ? `<div class="corte">${esc(ficha.nota)}</div>` : ''}
+    </div>`
+  }
+
+  // ---- Dónde depositar ----
+  // Solo se dibuja si hay cuenta cargada. Un dato bancario a medias es peor que ninguno.
+  let vistaDeposito = ''
+  if (ficha && ficha.deposito_clabe) {
+    const renglon = (k, v) => v ? `<div class="ren"><span>${k}</span><b>${esc(v)}</b></div>` : ''
+    vistaDeposito = `<div class="tarjeta">
+      <div class="etiqueta">Dónde depositar tus mensualidades</div>
+      <div class="deposito">
+        ${renglon('Banco', ficha.deposito_banco)}
+        ${renglon('CLABE', ficha.deposito_clabe)}
+        ${renglon('Cuenta', ficha.deposito_cuenta)}
+        ${renglon('A nombre de', ficha.deposito_titular)}
+        ${renglon('Tu referencia', c.referencia_pago)}
+      </div>
+      ${c.referencia_pago ? `<p style="font-size:13.5px;line-height:1.55;margin-top:14px;color:var(--tenue)">
+        <b style="color:var(--texto)">La referencia es tuya y solo tuya.</b> Es lo que hace que tu
+        pago se registre en tu departamento y no en otro. Va siempre en el concepto de la
+        transferencia.</p>` : ''}
+      <div class="cuidado">Estos datos no cambian. <b>Si alguna vez te llega por mensaje o correo
+        una cuenta distinta —aunque venga a mi nombre— no transfieras y márcame.</b></div>
+      <div class="corte">${ficha.deposito_verificado
+        ? `Cuenta verificada contra tu contrato el ${fecha(ficha.deposito_verificado)}`
+        : 'Cuenta tomada de tu contrato'}. Si el desarrollador la cambia, te aviso yo.</div>
+    </div>`
+  }
+
   const vistaPagos = `
     ${hero}
     <div class="tarjeta">
@@ -529,14 +649,19 @@ function pintar(cliente, c, pagos, docs, avance, zona){
       ${c.pagado_es_preliminar
         ? `<span class="preliminar">Cifra preliminar · en confirmación con el desarrollador</span>` : ''}
       <div class="corte">${c.pagado_fecha_corte
-        ? `Información actualizada al ${fecha(c.pagado_fecha_corte)}` : 'Fecha de corte pendiente'}</div>
+        ? `Última conciliación con el desarrollador: ${fecha(c.pagado_fecha_corte)}.
+           Es la fecha en que se cotejó movimiento por movimiento contra sus registros.
+           Si hiciste un pago después de esa fecha, todavía no aparece aquí.`
+        : 'Todavía no se ha hecho la primera conciliación con el desarrollador.'}</div>
     </div>
     <div class="tarjeta">
       <div class="etiqueta">Movimientos identificados</div>
       ${movs}
       <div class="corte">${pagos.length} ${pagos.length===1?'movimiento':'movimientos'}
         · suman ${dinero(pagos.reduce((a,p)=>a+Number(p.monto),0))}</div>
-    </div>`
+    </div>
+    ${bannerLegal}
+    ${vistaDeposito}`
 
   // ===== 2. OBRA =====
   const ETAPAS = ['Cimentación','Estructura','Acabados']
