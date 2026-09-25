@@ -19,14 +19,14 @@
   /* La marca no cambia entre modos: azul pizarra y verde lima. Cambian fondos y
      textos. Ningún color se escribe suelto más abajo — todo pasa por aquí. */
   :root{
-    --navy:#282D3A; --lima:#D0FB57;
-    --fondo:#F6F7F8; --tarjeta:#fff; --linea:#E3E6EA;
+    --navy:#282D3A; --lima:#D0FB57; --acento:#0E9E88; --acento-suave:#E6F6F2;
+    --fondo:#F4F6F7; --tarjeta:#fff; --linea:#E3E6EA;
     --texto:#282D3A; --tenue:#6B7280; --tenue2:#9AA1AC;
     --hero-bg:#282D3A; --hero-linea:#3A4152; --hero-texto:#B7BECB; --hero-tenue:#8A93A2;
     --suave:#F4F6F8; --pista:#EDF0F3; --relleno:#282D3A;
     --aviso-bg:#FEF3C7; --aviso-texto:#B45309;
-    --ok-bg:#E7F6EC; --ok-texto:#1B7A43;
-    --sombra:0 1px 2px rgba(40,45,58,.04), 0 4px 14px rgba(40,45,58,.05);
+    --ok-bg:#E6F6F2; --ok-texto:#0E9E88;
+    --sombra:0 1px 2px rgba(40,45,58,.05), 0 6px 20px rgba(40,45,58,.07);
     --radio:14px;
     /* El ancho del contenido y el margen lateral crecen con la pantalla. En teléfono
        el margen es mínimo porque cada píxel cuenta; en monitor se abre, porque una
@@ -35,13 +35,14 @@
     --fuente:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   }
   html[data-modo="oscuro"]{
+    --acento:#2FD4B8; --acento-suave:#17322E;
     --fondo:#171A21; --tarjeta:#21252F; --linea:#333A48;
     --texto:#ECEEF2; --tenue:#98A1B0; --tenue2:#79828F;
     --hero-bg:#2E3442; --hero-linea:#434B5C; --hero-texto:#C4CBD6; --hero-tenue:#8F98A6;
     --suave:#2A2F3B; --pista:#333A48; --relleno:#D0FB57;
     --aviso-bg:#3A2F14; --aviso-texto:#F3C969;
-    --ok-bg:#16301F; --ok-texto:#6FD49A;
-    --sombra:0 1px 2px rgba(0,0,0,.25), 0 4px 14px rgba(0,0,0,.2);
+    --ok-bg:#17322E; --ok-texto:#2FD4B8;
+    --sombra:0 1px 2px rgba(0,0,0,.25), 0 6px 20px rgba(0,0,0,.28);
     color-scheme:dark;
   }
   @media (min-width:640px){  :root{ --margen:28px } }
@@ -55,22 +56,46 @@
   .oculto{display:none!important}
 
   /* ---------------- Entrada ---------------- */
-  #entrada{min-height:100dvh;display:flex;align-items:center;justify-content:center;
-    padding:24px;background:var(--navy)}
-  .caja{width:100%;max-width:380px}
+  /* La torre necesita su propio espacio: en teléfono va arriba y la caja se va al
+     fondo; en pantalla ancha la caja se recorre a la derecha y la torre queda a la
+     izquierda. Centrar las dos en el mismo punto escondía la animación detrás del
+     formulario. */
+  #entrada{min-height:100dvh;display:flex;align-items:flex-end;justify-content:center;
+    padding:24px 24px 34px;position:relative;overflow:hidden;
+    background:
+      radial-gradient(90% 70% at 50% 8%,  rgba(14,158,136,.20) 0%, transparent 60%),
+      radial-gradient(70% 60% at 82% 96%, rgba(208,251,87,.10) 0%, transparent 60%),
+      #1E2330}
+  #constelacion{position:absolute;inset:0;width:100%;height:100%;display:block}
+  /* La caja flota sobre la constelación: vidrio, no un bloque opaco. El desenfoque
+     es lo que deja leer el formulario sin apagar la animación de atrás. */
+  .caja{width:100%;max-width:380px;position:relative;z-index:2;
+    background:rgba(30,35,48,.72);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    border:1px solid rgba(255,255,255,.09);border-radius:20px;padding:30px 26px 26px;
+    box-shadow:0 24px 60px rgba(0,0,0,.42)}
+  @supports not (backdrop-filter: blur(4px)){ .caja{background:rgba(30,35,48,.94)} }
+  @media (min-width:900px){
+    #entrada{align-items:center;justify-content:flex-end;padding:24px max(7vw,56px)}
+  }
   .marca{display:flex;align-items:baseline;gap:2px;justify-content:center;margin-bottom:28px}
   .marca b{color:#fff;font-size:22px;font-weight:700;letter-spacing:-.02em}
   .marca i{display:inline-block;width:9px;height:22px;background:var(--lima);
-    transform:skewX(-18deg);margin:0 3px}
+    transform:skewX(-18deg);margin:0 3px;box-shadow:0 0 18px rgba(208,251,87,.5)}
   .caja h1{color:#fff;font-size:19px;font-weight:600;text-align:center;margin-bottom:4px}
   .caja p.sub{color:#98A0AE;font-size:14px;text-align:center;margin-bottom:24px}
   .campo{margin-bottom:12px}
   .campo label{display:block;font-size:12px;color:#98A0AE;margin-bottom:6px;font-weight:500}
   .campo input{width:100%;padding:13px 14px;border:1px solid #3A4152;border-radius:10px;
     background:#31384A;color:#fff;font-size:16px;font-family:inherit}
-  .campo input:focus{outline:none;border-color:var(--lima)}
-  button.principal{width:100%;padding:14px;border:0;border-radius:10px;background:var(--lima);
-    color:var(--navy);font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;margin-top:8px}
+  .campo input{background:rgba(49,56,74,.75)}
+  .campo input:focus{outline:none;border-color:var(--lima);
+    box-shadow:0 0 0 3px rgba(208,251,87,.14)}
+  button.principal{width:100%;padding:14px;border:0;border-radius:10px;
+    background:linear-gradient(100deg, var(--lima) 0%, #B7F03A 100%);
+    color:var(--navy);font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;margin-top:8px;
+    box-shadow:0 8px 22px rgba(208,251,87,.22);transition:transform .15s ease, box-shadow .15s ease}
+  button.principal:hover:not(:disabled){transform:translateY(-1px);
+    box-shadow:0 12px 28px rgba(208,251,87,.32)}
   button.principal:disabled{opacity:.55;cursor:default}
   #errorEntrada{color:#FCA5A5;font-size:13px;margin-top:14px;text-align:center;min-height:18px}
   .alterno{display:block;width:100%;background:none;border:0;color:#98A0AE;font-size:13px;
@@ -145,13 +170,23 @@
   .tarjeta{background:var(--tarjeta);border:1px solid var(--linea);border-radius:var(--radio);
     padding:18px;margin-bottom:14px;box-shadow:var(--sombra)}
   .etiqueta{font-size:11px;text-transform:uppercase;letter-spacing:.09em;
-    color:var(--tenue2);font-weight:600;margin-bottom:10px}
+    color:var(--tenue2);font-weight:600;margin-bottom:10px;
+    display:flex;align-items:center;gap:8px}
+  .etiqueta::before{content:'';width:10px;height:3px;border-radius:99px;
+    background:var(--lima);flex:0 0 auto}
+  .hero .etiqueta::before{background:var(--lima)}
   .corte{font-size:11px;color:var(--tenue2);margin-top:12px;padding-top:10px;
     border-top:1px solid var(--linea)}
   .vacio{color:var(--tenue);font-size:14px;line-height:1.6}
 
-  .hero{background:var(--hero-bg);border-radius:var(--radio);padding:22px;margin-bottom:14px;
-    color:#fff;box-shadow:var(--sombra)}
+  .hero{background:
+      radial-gradient(120% 140% at 88% -20%, rgba(208,251,87,.16) 0%, transparent 52%),
+      radial-gradient(100% 120% at 0% 115%, rgba(14,158,136,.26) 0%, transparent 55%),
+      linear-gradient(152deg, var(--hero-bg) 0%, var(--navy) 100%);
+    border-radius:var(--radio);padding:22px;margin-bottom:14px;
+    color:#fff;box-shadow:var(--sombra);position:relative;overflow:hidden}
+  .hero::after{content:'';position:absolute;inset:0;border-radius:var(--radio);
+    border:1px solid rgba(255,255,255,.07);pointer-events:none}
   .hero .etiqueta{color:var(--lima);margin-bottom:8px}
   .hero .monto{font-size:36px;font-weight:700;letter-spacing:-.03em;line-height:1.1}
   .hero .cuando{font-size:15px;color:var(--hero-texto);margin-top:6px}
@@ -163,8 +198,8 @@
   .cifra .v{font-size:22px;font-weight:700;letter-spacing:-.02em}
   .cifra .k{font-size:12px;color:var(--tenue);margin-top:2px}
   .barra{height:7px;background:var(--pista);border-radius:99px;overflow:hidden;margin-top:14px}
-  .barra span{display:block;height:100%;background:var(--relleno);border-radius:99px;
-    transition:width .5s ease}
+  .barra span{display:block;height:100%;border-radius:99px;transition:width .6s cubic-bezier(.3,1,.4,1);
+    background:linear-gradient(90deg, var(--acento) 0%, var(--lima) 100%)}
   .preliminar{display:inline-block;background:var(--aviso-bg);color:var(--aviso-texto);
     font-size:11px;font-weight:600;padding:4px 9px;border-radius:99px;margin-top:12px}
 
@@ -186,13 +221,14 @@
   .masmov:hover{background:var(--pista)}
 
   .avanceCifra{display:flex;align-items:baseline;gap:9px;margin-bottom:2px}
-  .avanceCifra b{font-size:38px;font-weight:700;letter-spacing:-.03em;line-height:1}
+  .avanceCifra b{font-size:38px;font-weight:700;letter-spacing:-.03em;line-height:1;
+    color:var(--acento)}
   .avanceCifra span{font-size:14px;color:var(--tenue)}
   .etapa{font-size:22px;font-weight:700;letter-spacing:-.02em;margin-bottom:3px}
   .etapas{display:flex;gap:6px;margin:16px 0 10px}
   .etapas div{flex:1;text-align:center}
   .etapas .marca2{height:6px;border-radius:99px;background:var(--pista)}
-  .etapas .hecha .marca2{background:var(--relleno)}
+  .etapas .hecha .marca2{background:var(--acento)}
   .etapas .ahora .marca2{background:var(--lima)}
   .etapas span{display:block;font-size:11px;color:var(--tenue2);margin-top:7px}
   .etapas .ahora span{color:var(--texto);font-weight:700}
@@ -250,7 +286,9 @@
   .compara .k{font-size:14px}
   .compara .k small{display:block;font-size:11.5px;color:var(--tenue2);margin-top:2px}
   .compara .v{font-size:17px;font-weight:700;white-space:nowrap}
-  .resalta{background:var(--suave);border-radius:10px;padding:14px;margin-top:14px}
+  .resalta{background:var(--acento-suave);border-radius:10px;padding:14px;margin-top:14px;
+    border-left:3px solid var(--acento)}
+  .resalta .v{color:var(--acento)}
 
   /* Banner de tres columnas: en teléfono se apila, en pantalla se reparte. */
   .tres{display:grid;grid-template-columns:1fr;gap:2px}
@@ -291,6 +329,7 @@
 
 <!-- ================= ENTRADA ================= -->
 <section id="entrada" class="oculto">
+  <canvas id="constelacion" aria-hidden="true"></canvas>
   <div class="caja">
     <div class="marca"><b>Walkmansion</b><i></i></div>
     <h1>Tu portal</h1>
@@ -357,6 +396,170 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 const SUPABASE_URL = 'https://lyumrzowusjzfeqkglvm.supabase.co'
 const SUPABASE_KEY = 'sb_publishable_623gFtuDfFpP_Ghi9KEjAA_jlqb3RDG'
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY)
+
+
+// ---------- Constelación de la entrada ----------
+// Miles de triángulos diminutos que se ordenan hasta formar una torre y luego
+// respiran. La forma NO está dibujada a mano punto por punto: se dibuja el edificio
+// en un lienzo invisible, se leen los píxeles que quedaron pintados y cada uno se
+// vuelve el destino de una partícula. Cambiar el edificio es cambiar el dibujo.
+;(function constelacion(){
+  const lienzo = document.getElementById('constelacion')
+  if (!lienzo) return
+  const ctx = lienzo.getContext('2d', { alpha:true })
+  const quieto = matchMedia('(prefers-reduced-motion: reduce)').matches
+  const TONOS = ['#D0FB57','#D0FB57','#2FD4B8','#2FD4B8','#FFFFFF','#8FB8FF','#FFC46B']
+  let P = [], amb = [], an = 0, t0 = 0, corriendo = false
+
+  // El edificio vive como una lista de trazos en una caja de 1000x1000, y los puntos
+  // se reparten A LO LARGO de esos trazos, a distancia pareja. Antes se dibujaba en
+  // un lienzo y se leían los píxeles: con pocas partículas la silueta se rompía en
+  // manchas y dejaba de leerse como torre. Repartir sobre el trazo la sostiene
+  // siempre, con 300 partículas o con 600.
+  const SUELO = 880
+  function trazos(){
+    const T = []
+    const torres = [
+      { x1:150, x2:330, y:455, piso:70 },
+      { x1:385, x2:640, y:255, piso:66, remate:true },
+      { x1:695, x2:875, y:545, piso:74 },
+    ]
+    for (const t of torres) {
+      T.push(t.remate
+        // Retranqueo escalonado, no diagonal: es el remate que piden en varias
+        // zonas de Guadalajara y se lee como edificio, no como cúpula.
+        ? [[t.x1,SUELO],[t.x1,t.y+110],[t.x1+58,t.y+110],[t.x1+58,t.y],
+           [t.x2-58,t.y],[t.x2-58,t.y+110],[t.x2,t.y+110],[t.x2,SUELO]]
+        : [[t.x1,SUELO],[t.x1,t.y],[t.x2,t.y],[t.x2,SUELO]])
+      // Una losa de cada dos: suficientes para que se lea vertical, no tantas que
+      // se vuelva ruido.
+      let n = 0
+      for (let y = t.y + t.piso*1.5; y < SUELO - 14; y += t.piso, n++)
+        if (n % 2 === 0) T.push([[t.x1+14,y],[t.x2-14,y]])
+      // Ventanas encendidas: un punto cada una, salteadas.
+      const cols = Math.max(2, Math.round((t.x2-t.x1)/70))
+      let m = 0
+      for (let y = t.y + t.piso*1.2; y < SUELO - t.piso*0.5; y += t.piso, m++)
+        for (let c = 0; c < cols; c++)
+          if ((m + c) % 3 === 0)
+            T.push([[t.x1+30+c*((t.x2-t.x1-60)/Math.max(1,cols-1)), y]])
+    }
+    T.push([[512,255],[512,150]])            // antena
+    T.push([[80,SUELO],[920,SUELO]])         // suelo
+    return T
+  }
+
+  // Reparte puntos cada `paso` unidades a lo largo de cada trazo.
+  function destinos(paso){
+    const pts = []
+    for (const tr of trazos()) {
+      if (tr.length === 1) { pts.push(tr[0]); continue }
+      let sobra = 0
+      for (let i = 0; i < tr.length - 1; i++) {
+        const [ax,ay] = tr[i], [bx,by] = tr[i+1]
+        const L = Math.hypot(bx-ax, by-ay)
+        for (let d = sobra; d < L; d += paso)
+          pts.push([ax + (bx-ax)*d/L, ay + (by-ay)*d/L])
+        sobra = (Math.ceil((L - sobra)/paso)*paso + sobra) - L
+      }
+      pts.push(tr[tr.length-1])
+    }
+    return pts
+  }
+
+  function armar(){
+    const w = lienzo.clientWidth, h = lienzo.clientHeight
+    const dpr = Math.min(2, devicePixelRatio || 1)
+    lienzo.width = Math.round(w*dpr); lienzo.height = Math.round(h*dpr)
+    ctx.setTransform(dpr,0,0,dpr,0,0)
+
+    // Dónde se planta la torre. En pantalla ancha, a la izquierda del formulario;
+    // en teléfono, arriba de él. Son las mismas dos fracciones que usa el CSS.
+    const ancha = w >= 900
+    const lado = ancha ? Math.min(w*0.42, h*0.82, 640)
+                       : Math.min(w*0.94, h*0.46)
+    const cx = ancha ? 0.34 : 0.5
+    const cy = ancha ? 0.50 : 0.30
+    const u = lado/1000
+    const pts = destinos(ancha ? 9 : 15).map(q => [q[0]*u, q[1]*u])
+    const ox = w*cx - lado/2, oy = h*cy - lado/2
+
+    P = pts.map((q, i) => ({
+      dx: ox + q[0], dy: oy + q[1],
+      x: w/2 + (Math.random()-0.5)*w*1.5, y: h/2 + (Math.random()-0.5)*h*1.5,
+      r: Math.random()*Math.PI, vr: (Math.random()-0.5)*0.012,
+      t: 1.1 + Math.random()*1.8, f: Math.random()*Math.PI*2,
+      a: 2.1 + Math.random()*1.9, c: TONOS[i % TONOS.length],
+      o: 0.45 + Math.random()*0.45, d: Math.random()*0.5,
+    }))
+    amb = Array.from({length: ancha ? 46 : 22}, () => ({
+      x: Math.random()*w, y: Math.random()*h,
+      vx: (Math.random()-0.5)*0.12, vy: -0.05 - Math.random()*0.12,
+      r: Math.random()*Math.PI, vr: (Math.random()-0.5)*0.008,
+      a: 1.6 + Math.random()*2, c: TONOS[(Math.random()*TONOS.length)|0],
+      o: 0.06 + Math.random()*0.14,
+    }))
+  }
+
+  function triangulo(p, alfa){
+    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.r)
+    ctx.beginPath()
+    ctx.moveTo(0, -p.a); ctx.lineTo(p.a*0.87, p.a*0.5); ctx.lineTo(-p.a*0.87, p.a*0.5)
+    ctx.closePath()
+    ctx.strokeStyle = p.c; ctx.globalAlpha = alfa; ctx.lineWidth = 1
+    ctx.stroke(); ctx.restore()
+  }
+
+  function cuadro(ms){
+    if (!t0) t0 = ms
+    const s = (ms - t0) / 1000
+    ctx.clearRect(0, 0, lienzo.clientWidth, lienzo.clientHeight)
+
+    for (const p of amb) {
+      p.x += p.vx; p.y += p.vy; p.r += p.vr
+      if (p.y < -12) { p.y = lienzo.clientHeight + 12; p.x = Math.random()*lienzo.clientWidth }
+      if (p.x < -12) p.x = lienzo.clientWidth + 12
+      if (p.x > lienzo.clientWidth + 12) p.x = -12
+      triangulo(p, p.o)
+    }
+
+    for (const p of P) {
+      // Llegada con desaceleración, y después una respiración que nunca se detiene.
+      const k = Math.min(1, Math.max(0, (s - p.d) / 1.5))
+      const e = 1 - Math.pow(1 - k, 3)
+      const resp = e === 1 ? 1 : 0
+      const bx = Math.cos(s*0.45 + p.f) * p.t * resp
+      const by = Math.sin(s*0.38 + p.f*1.7) * p.t * resp
+      p.x = p.x + ((p.dx + bx) - p.x) * (e < 1 ? 0.12 : 0.06)
+      p.y = p.y + ((p.dy + by) - p.y) * (e < 1 ? 0.12 : 0.06)
+      p.r += p.vr
+      triangulo(p, p.o * Math.min(1, e*1.3))
+    }
+    if (corriendo) requestAnimationFrame(cuadro)
+  }
+
+  function encender(){
+    if (corriendo) return
+    if (document.getElementById('entrada').classList.contains('oculto')) return
+    armar()
+    if (quieto) {                      // Sin movimiento: se dibuja la torre ya armada.
+      for (const p of P) { p.x = p.dx; p.y = p.dy }
+      ctx.clearRect(0,0,lienzo.clientWidth,lienzo.clientHeight)
+      for (const p of P) triangulo(p, p.o)
+      return
+    }
+    corriendo = true; t0 = 0; requestAnimationFrame(cuadro)
+  }
+  function apagar(){ corriendo = false }
+
+  // Solo gasta batería mientras la entrada está a la vista.
+  addEventListener('resize', () => { if (corriendo || quieto) { apagar(); requestAnimationFrame(encender) } })
+  document.addEventListener('visibilitychange', () => document.hidden ? apagar() : encender())
+  new MutationObserver(() => document.getElementById('entrada').classList.contains('oculto')
+    ? apagar() : encender()
+  ).observe(document.getElementById('entrada'), { attributes:true, attributeFilter:['class'] })
+  encender()
+})()
 
 const $ = id => document.getElementById(id)
 const ver = id => $(id).classList.remove('oculto')
