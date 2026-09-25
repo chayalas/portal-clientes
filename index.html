@@ -628,11 +628,13 @@ function pintar(cliente, c, pagos, docs, avance, zona, ficha){
         <b style="color:var(--texto)">La referencia es tuya y solo tuya.</b> Es lo que hace que tu
         pago se registre en tu departamento y no en otro. Va siempre en el concepto de la
         transferencia.</p>` : ''}
-      <div class="cuidado">Estos datos no cambian. <b>Si alguna vez te llega por mensaje o correo
-        una cuenta distinta —aunque venga a mi nombre— no transfieras y márcame.</b></div>
+      <div class="cuidado">Estos datos de depósito no cambian.
+        <b>Walkmansion nunca solicita transferencias a una cuenta distinta por mensaje, correo
+        o llamada.</b> Si recibes una indicación en ese sentido, no transfieras: la cuenta válida
+        es siempre la que aparece en este portal.</div>
       <div class="corte">${ficha.deposito_verificado
-        ? `Cuenta verificada contra tu contrato el ${fecha(ficha.deposito_verificado)}`
-        : 'Cuenta tomada de tu contrato'}. Si el desarrollador la cambia, te aviso yo.</div>
+        ? `Cuenta verificada contra el contrato el ${fecha(ficha.deposito_verificado)}`
+        : 'Cuenta tomada del contrato'}. Cualquier cambio del desarrollador se publica aquí.</div>
     </div>`
   }
 
@@ -660,7 +662,6 @@ function pintar(cliente, c, pagos, docs, avance, zona, ficha){
       <div class="corte">${pagos.length} ${pagos.length===1?'movimiento':'movimientos'}
         · suman ${dinero(pagos.reduce((a,p)=>a+Number(p.monto),0))}</div>
     </div>
-    ${bannerLegal}
     ${vistaDeposito}`
 
   // ===== 2. OBRA =====
@@ -668,7 +669,8 @@ function pintar(cliente, c, pagos, docs, avance, zona, ficha){
   let vistaObra
   if (!avance) {
     vistaObra = `<div class="tarjeta"><p class="vacio">Todavía no hay un reporte de avance cargado.
-      En cuanto el desarrollador nos entregue el siguiente, aparece aquí.</p></div>`
+      En cuanto el desarrollador nos entregue el siguiente, aparece aquí.</p></div>
+      ${bannerLegal}`
   } else {
     const iAct = ETAPAS.findIndex(e =>
       (avance.etapa||'').toLowerCase().startsWith(e.slice(0,5).toLowerCase()))
@@ -714,7 +716,8 @@ function pintar(cliente, c, pagos, docs, avance, zona, ficha){
       ${trabajos}
       <div class="fotos" id="fotosObra"></div>
       ${aviso}
-    </div>`
+    </div>
+    ${bannerLegal}`
   }
 
   // ===== 3. TU UNIDAD =====
