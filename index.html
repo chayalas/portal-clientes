@@ -225,6 +225,10 @@
   .mov .der{text-align:right;white-space:nowrap}
   .mov .der .m{font-size:14px;font-weight:600}
   .mov .der .r{font-size:11px;color:var(--tenue2);margin-top:2px}
+  .verRecibo{margin-top:4px;background:none;border:0;padding:0;font-family:inherit;font-size:12px;
+    font-weight:600;color:var(--acento);cursor:pointer;text-decoration:underline;
+    text-underline-offset:3px}
+  .verRecibo:disabled{opacity:.5;cursor:default;text-decoration:none}
   .masmov{width:100%;margin-top:14px;padding:11px;background:var(--suave);
     border:1px solid var(--linea);border-radius:10px;color:var(--texto);
     font-size:13px;font-weight:600;font-family:inherit;cursor:pointer}
@@ -751,7 +755,7 @@ async function cargar(){
   }
 
   const [{ data: pagos }, { data: docs }, { data: avances }, { data: zonas }, { data: fichas }] = await Promise.all([
-    sb.from('pagos').select('fecha, concepto, monto, forma_pago, banco_parcial, num_recibo, estado')
+    sb.from('pagos').select('fecha, concepto, monto, forma_pago, banco_parcial, num_recibo, estado, comprobante_path')
       .order('fecha', { ascending: true }),
     sb.from('documentos').select('tipo, nombre, storage_path').order('tipo'),
     sb.from('avances_obra')
@@ -819,7 +823,9 @@ function pintar(cliente, c, pagos, docs, avance, zona, ficha){
         ${p.estado === 'en_espera'
           ? `<div class="espera">En espera de confirmación del desarrollador</div>` : ''}</div>
       <div class="der"><div class="m">${dinero(p.monto)}</div>
-        ${p.num_recibo ? `<div class="r">recibo ${esc(p.num_recibo)}</div>` : ''}</div></div>`
+        ${p.comprobante_path
+          ? `<button class="verRecibo" data-rec="${pagos.indexOf(p)}">Ver recibo</button>`
+          : p.num_recibo ? `<div class="r">ref. ${esc(p.num_recibo)}</div>` : ''}</div></div>`
 
   const movs = !orden.length
     ? `<p class="vacio">Todavía no hay movimientos registrados.</p>`
@@ -1250,6 +1256,17 @@ function pintar(cliente, c, pagos, docs, avance, zona, ficha){
       const x = papeles[Number(btn.dataset.doc)]
       btn.disabled = true; const antes = btn.textContent; btn.textContent = 'Abriendo…'
       const { data } = await firmar('documentos', x.storage_path, 60)
+      btn.disabled = false; btn.textContent = antes
+      if (!data) { btn.textContent = 'No disponible'; return }
+      window.open(data.signedUrl, '_blank')
+    })
+  })
+
+  document.querySelectorAll('[data-rec]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const x = pagos[Number(btn.dataset.rec)]
+      btn.disabled = true; const antes = btn.textContent; btn.textContent = 'Abriendo…'
+      const { data } = await firmar('documentos', x.comprobante_path, 60)
       btn.disabled = false; btn.textContent = antes
       if (!data) { btn.textContent = 'No disponible'; return }
       window.open(data.signedUrl, '_blank')
