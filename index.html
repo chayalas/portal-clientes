@@ -742,7 +742,7 @@ async function cargar(){
       esquema, cajones_desc, bodega_desc, fecha_firma, referencia_pago,
       unidades ( numero, nivel,
         modelos ( id, nombre, recamaras, banos, superficie_m2, construccion_m2, terraza_m2,
-                  precio_lista_actual, precio_lista_fecha_corte, sin_incremento,
+                  precio_lista_actual, precio_lista_fecha_corte, sin_incremento, precio_lista_nota,
                   precio_lista_nivel_base, precio_lista_incremento_nivel ),
         torres ( id, nombre, entrega_estimada, entrega_contrato,
           desarrollos ( nombre, desarrollador, zona ) ) )
@@ -1100,8 +1100,11 @@ function pintar(cliente, c, pagos, docs, avance, zona, ficha){
         <small>ya con el descuento de tu forma de pago</small></div>
         <div class="v">${dinero(c.precio_departamento)}</div></div>
       <div class="compara"><div class="k">Precio de lista hoy
-        <small>tu nivel ${u.nivel ?? '—'}${m.precio_lista_fecha_corte
-          ? ' · lista de ' + mesAnio(m.precio_lista_fecha_corte) : ''}</small></div>
+        <small>${m.precio_lista_nota
+          ? esc(m.precio_lista_nota) + (m.precio_lista_fecha_corte
+              ? ' · al ' + fecha(m.precio_lista_fecha_corte) : '')
+          : 'tu nivel ' + (u.nivel ?? '—') + (m.precio_lista_fecha_corte
+              ? ' · lista de ' + mesAnio(m.precio_lista_fecha_corte) : '')}</small></div>
         <div class="v">${dinero(listaHoy)}</div></div>
       <div class="resalta">
         <div class="k">Ha subido desde que compraste</div>
