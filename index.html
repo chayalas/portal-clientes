@@ -243,7 +243,11 @@
   .etapas div{flex:1;text-align:center}
   .etapas .marca2{height:6px;border-radius:99px;background:var(--pista)}
   .etapas .hecha .marca2{background:var(--acento)}
-  .etapas .ahora .marca2{background:var(--lima)}
+  /* La etapa EN CURSO no se pinta llena: llena se lee como terminada. Va un
+     degradado que se desvanece — arrancó, no acabó. Y es un degradado, no un
+     porcentaje: no estamos afirmando cuánto lleva, solo que está en marcha. */
+  .etapas .ahora .marca2{background:linear-gradient(90deg,
+    var(--lima) 0%, var(--lima) 20%, var(--pista) 72%)}
   .etapas span{display:block;font-size:11px;color:var(--tenue2);margin-top:7px}
   .etapas .ahora span{color:var(--texto);font-weight:700}
   .etapas .hecha span{color:var(--tenue)}
@@ -955,7 +959,11 @@ function pintar(cliente, c, pagos, docs, avance, zona, ficha){
     // un total. Y usa la misma barra que "lo que llevas pagado" — un solo idioma visual.
     // Una obra en cero no es «sin información»: es una obra que todavía no arranca,
     // y decirlo con la barra vacía es más claro que un porcentaje en cero.
-    const arranca = Number(avance.porcentaje) === 0
+    const arranca = avance.porcentaje != null && Number(avance.porcentaje) === 0
+    // Una etapa puede estar EN CURSO sin que el desarrollador haya reportado un
+    // porcentaje. Antes de la construcción no hay cifra que reportar, y poner una
+    // inventada sería peor que no poner ninguna: el recorrido de etapas es el avance.
+    const enCurso = avance.porcentaje == null
     const cifra = avance.porcentaje == null ? ''
       : arranca
         ? `<div class="barra" style="margin-bottom:14px"><span style="width:0%"></span></div>`
@@ -981,13 +989,18 @@ function pintar(cliente, c, pagos, docs, avance, zona, ficha){
       ${cifra}
       <div class="etapa">${arranca
         ? 'Por comenzar · ' + esc(avance.etapa || 'Demolición')
-        : esc(avance.etapa || 'En construcción')}</div>
+        : enCurso
+          ? 'En curso · ' + esc(avance.etapa || 'En construcción')
+          : esc(avance.etapa || 'En construcción')}</div>
       <div style="font-size:13px;color:var(--tenue)">
         ${arranca ? 'Última actualización del desarrollador: ' + fecha(avance.fecha)
-                  : 'Reportado por el desarrollador en ' + mesAnio(avance.fecha)}</div>
+          : enCurso ? 'Comenzó el ' + fecha(avance.fecha)
+          : 'Reportado por el desarrollador en ' + mesAnio(avance.fecha)}</div>
       <div class="etapas">${tramos}</div>
       ${trabajos}
       <div class="fotos" id="fotosObra"></div>
+      ${enCurso ? `<div class="corte">El porcentaje de avance aparece aquí en cuanto el
+        desarrollador empiece a reportarlo, con el arranque de la construcción.</div>` : ''}
       ${aviso}
     </div>
     ${bannerLegal}`
