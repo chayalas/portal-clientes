@@ -378,10 +378,6 @@
         <label for="correo">Tu correo</label>
         <input id="correo" type="email" autocomplete="email" required>
       </div>
-      <div class="campo oculto" id="campoClave">
-        <label for="clave">Contraseña</label>
-        <input id="clave" type="password" autocomplete="current-password">
-      </div>
       <button class="principal" id="btnEntrar" type="submit">Enviar mi enlace de acceso</button>
       <div id="errorEntrada"></div>
       <div id="avisoEnviado" class="enviado oculto">
@@ -393,8 +389,11 @@
           <button type="button" id="btnCodigo">Entrar con el código</button>
         </div>
       </div>
-      <!-- Puerta de servicio: pruebas de Carlos. Se quita antes de dar acceso a clientes. -->
-      <button type="button" class="alterno" id="btnAlterno">Entrar con contraseña</button>
+      <!-- ⚠ AQUI VIVIA LA PUERTA DE SERVICIO CON CONTRASEÑA. Se retiró el 2026-10-23, al
+           entregarle el portal al primer cliente, tal como estaba decidido desde el 2026-09-12.
+           Dejó de ser un atajo de pruebas el día que existió una cuenta de administrador capaz
+           de leer el expediente de todos: una contraseña adivinada ya no abriría un portal,
+           los abriría todos. NO SE VUELVE A PONER. Para entrar, enlace o código. -->
     </form>
   </div>
 </section>
@@ -699,30 +698,12 @@ $('btnModo').addEventListener('click', () => {
 const { data:{ session } } = await sb.auth.getSession()
 session ? cargar() : (esconder('cargando'), ver('entrada'))
 
-let modoClave = false
-$('btnAlterno').addEventListener('click', () => {
-  modoClave = !modoClave
-  $('campoClave').classList.toggle('oculto', !modoClave)
-  $('clave').required = modoClave
-  $('btnEntrar').textContent = modoClave ? 'Entrar' : 'Enviar mi enlace de acceso'
-  $('btnAlterno').textContent = modoClave ? 'Mejor mándame un enlace' : 'Entrar con contraseña'
-  $('errorEntrada').textContent = ''
-  esconder('avisoEnviado')
-})
-
 $('formEntrada').addEventListener('submit', async e => {
   e.preventDefault()
   const correo = $('correo').value.trim()
   $('btnEntrar').disabled = true
   $('errorEntrada').textContent = ''
   esconder('avisoEnviado')
-
-  if (modoClave) {
-    const { error } = await sb.auth.signInWithPassword({ email: correo, password: $('clave').value })
-    $('btnEntrar').disabled = false
-    if (error) { $('errorEntrada').textContent = 'No pudimos entrar con esos datos.'; return }
-    esconder('entrada'); ver('cargando'); cargar(); return
-  }
 
   const { error } = await sb.auth.signInWithOtp({
     email: correo,
