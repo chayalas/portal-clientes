@@ -121,6 +121,24 @@
 
   /* ---------------- Marco ---------------- */
   #cargando{padding:90px 20px;text-align:center;color:var(--tenue)}
+  /* Barra de administrador. Tiene que ser imposible confundirla con el portal
+     normal: si Carlos no distingue de un vistazo que está viendo el portal de otro,
+     la función hace más daño que bien. Por eso va arriba de todo, en color de marca
+     y con el nombre de la persona escrito, no solo su inicial. */
+  .barraAdmin{position:sticky;top:0;z-index:30;background:var(--lima);color:var(--navy);
+    border-bottom:1px solid rgba(0,0,0,.18)}
+  .filaAdmin{max-width:var(--ancho);margin:0 auto;padding:9px var(--margen);
+    display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+    font-size:13px;line-height:1.35}
+  .filaAdmin .eti{font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+    font-size:11px;background:var(--navy);color:var(--lima);
+    padding:3px 8px;border-radius:999px;white-space:nowrap}
+  .filaAdmin .txt{flex:1 1 220px;min-width:0}
+  .filaAdmin b{font-weight:700}
+  .filaAdmin select{font:inherit;font-size:13px;color:var(--navy);
+    background:rgba(255,255,255,.75);border:1px solid rgba(0,0,0,.25);
+    border-radius:8px;padding:5px 8px;max-width:100%;cursor:pointer}
+  .barraAdmin + .barraSup{top:var(--altoAdmin,0px)}
   .barraSup{position:sticky;top:0;z-index:20;background:var(--fondo);
     border-bottom:1px solid var(--linea)}
   .barraSup .fila{max-width:var(--ancho);margin:0 auto;padding:15px var(--margen);
@@ -313,11 +331,14 @@
   .tres>div{padding:14px 0;border-bottom:1px solid var(--linea)}
   .tres>div:last-child{border-bottom:0;padding-bottom:0}
   .tres>div:first-child{padding-top:0}
+  /* Se sigue llamando «tres» pero ya no son tres: son TRES POR RENGLON, los que haya.
+     Nació con licencia, luz y agua; en octubre llegaron dos dictámenes más. Un número
+     clavado en la forma de acomodar es una promesa que se rompe sola. */
   @media (min-width:560px){
-    .tres{grid-template-columns:repeat(3,1fr);gap:0}
+    .tres{grid-template-columns:repeat(3,1fr);column-gap:0;row-gap:22px}
     .tres>div{padding:0 18px;border-bottom:0;border-left:1px solid var(--linea)}
-    .tres>div:first-child{padding:0 18px 0 0;border-left:0}
-    .tres>div:last-child{padding:0 0 0 18px}
+    .tres>div:nth-child(3n+1){padding-left:0;border-left:0}
+    .tres>div:nth-child(3n){padding-right:0}
   }
   .tres .k{font-size:12px;color:var(--tenue);margin-bottom:7px;line-height:1.35}
   .tres .v{font-size:16px;font-weight:700;display:flex;align-items:center;gap:7px}
@@ -389,6 +410,15 @@
 
 <!-- ================= MARCO ================= -->
 <div id="marco" class="oculto">
+  <!-- Solo aparece para una cuenta registrada en `admins`. Para un cliente no existe:
+       ni el elemento se muestra, ni la base le contesta las funciones que la llenan. -->
+  <div id="barraAdmin" class="barraAdmin oculto">
+    <div class="filaAdmin">
+      <span class="eti">Modo administrador</span>
+      <span class="txt">Estás viendo el portal de <b id="adminQuien">—</b>, tal cual lo ve él.</span>
+      <select id="adminSelector" aria-label="Ver el portal de otro cliente"></select>
+    </div>
+  </div>
   <header class="barraSup">
     <div class="fila">
       <div class="marca"><b>Walkmansion</b><i></i></div>
@@ -731,8 +761,74 @@ $('btnCodigo').addEventListener('click', async () => {
 $('codigo').addEventListener('keydown', e => { if (e.key === 'Enter') $('btnCodigo').click() })
 $('btnSalir').addEventListener('click', async () => { await sb.auth.signOut(); location.reload() })
 
+// ---------- Modo administrador ----------
+// Carlos tiene que poder revisar que lo que ve cada cliente sea correcto. La tentación
+// es darle una pantalla de administrador con todo junto; sería lo más fácil y lo menos
+// útil: para verificar lo que ve una persona hay que ver exactamente lo que ve.
+//
+// Así que no hay vista de administrador. Hay un interruptor: `ver_como` le dice a la
+// base a quién representa su sesión, y de ahí en adelante las mismas políticas de
+// siempre le contestan lo mismo que le contestarían al cliente. El navegador no filtra
+// nada; sigue sin saber que existen otros clientes. Si este bloque se rompiera, el
+// portal no mostraría datos de más: se quedaría sin datos.
+let esAdmin = false, clientesAdmin = [], viendoId = null
+
+async function resolverAdmin(){
+  // Para un cliente esta llamada devuelve false y aquí se acaba todo.
+  const { data: admin } = await sb.rpc('es_admin')
+  esAdmin = admin === true
+  if (!esAdmin) return
+
+  const [{ data: lista }, { data: fila }] = await Promise.all([
+    sb.rpc('clientes_del_admin'),
+    sb.from('admins').select('viendo_cliente_id').maybeSingle()
+  ])
+  clientesAdmin = lista || []
+  viendoId = fila?.viendo_cliente_id || null
+
+  // Primera entrada: nadie elegido todavía. Se elige al primero de la lista en lugar
+  // de dejarlo en blanco, porque "sin cliente" se vería igual que "cliente sin datos".
+  if (!viendoId && clientesAdmin.length) {
+    viendoId = clientesAdmin[0].id
+    await sb.rpc('ver_como', { p_cliente: viendoId })
+  }
+  pintarBarraAdmin()
+}
+
+function pintarBarraAdmin(){
+  if (!esAdmin) return
+  $('adminSelector').innerHTML = clientesAdmin.map(c =>
+    `<option value="${esc(c.id)}"${c.id === viendoId ? ' selected' : ''}>${esc(c.nombre)}</option>`
+  ).join('')
+  const quien = clientesAdmin.find(c => c.id === viendoId)
+  $('adminQuien').textContent = quien ? (quien.nombre_corto || quien.nombre) : '—'
+  ver('barraAdmin')
+}
+
+// Las dos barras se pegan arriba; la de abajo tiene que empezar donde termina la de
+// arriba o se encimarían al hacer scroll. Solo se puede medir con el marco ya visible.
+function medirBarraAdmin(){
+  if (!esAdmin) return
+  document.documentElement.style.setProperty('--altoAdmin', $('barraAdmin').offsetHeight + 'px')
+}
+addEventListener('resize', medirBarraAdmin)
+
+$('adminSelector').addEventListener('change', async e => {
+  const id = e.target.value
+  e.target.disabled = true
+  const { error } = await sb.rpc('ver_como', { p_cliente: id })
+  if (error) { e.target.disabled = false; return }
+  viendoId = id
+  location.hash = ''
+  esconder('marco'); ver('cargando')
+  await cargar()
+  e.target.disabled = false
+})
+
 // ---------- Carga ----------
 async function cargar(){
+  await resolverAdmin()
+
   const { data: cliente } = await sb.from('clientes').select('nombre, nombre_corto').single()
 
   const { data: compra, error } = await sb.from('compras').select(`
@@ -752,7 +848,7 @@ async function cargar(){
     || (cliente?.nombre || '').trim().split(/\s+/)[0] || ''
 
   if (error || !compra) {
-    esconder('cargando'); ver('marco')
+    esconder('cargando'); ver('marco'); medirBarraAdmin()
     $('vistas').innerHTML = `<div class="tarjeta"><p class="vacio">
       Todavía no hay información cargada en tu cuenta. Escríbele a tu asesor y la subimos.</p></div>`
     return
@@ -773,7 +869,7 @@ async function cargar(){
     // La ficha legal del desarrollo: licencia, factibilidades y a dónde deposita.
     // La política de la base solo devuelve la del desarrollo donde el cliente compró.
     sb.from('ficha_legal')
-      .select('licencia_estado, licencia_numero, licencia_municipio, licencia_fecha, factibilidad_luz, factibilidad_agua, deposito_banco, deposito_clabe, deposito_cuenta, deposito_titular, deposito_verificado, fuente, nota')
+      .select('licencia_estado, licencia_numero, licencia_municipio, licencia_fecha, factibilidad_luz, factibilidad_agua, dictamen_cultura, dictamen_transito, deposito_banco, deposito_clabe, deposito_cuenta, deposito_titular, deposito_verificado, fuente, nota')
       .limit(1)
   ])
 
@@ -847,11 +943,18 @@ function pintar(cliente, c, pagos, docs, avance, zona, ficha){
     no:      ['<span class="marca-no">&ndash;</span>',   'No'],
     proceso: ['<span class="marca-esp">&hellip;</span>', 'En proceso'],
   }
-  const senal = v => SENAL[String(v || '').toLowerCase()] || null
+  // Mismo estado y misma palomita; cambia solo la palabra. Una factibilidad se
+  // contesta «Sí»; un dictamen de autoridad se contesta «Aprobado». Decirle «Sí» a
+  // un dictamen suena a que alguien opinó, y lo que hubo fue una resolución.
+  const APROBADO = {
+    si:      ['<span class="marca-ok">&#10003;</span>',  'Aprobado'],
+    no:      ['<span class="marca-no">&ndash;</span>',   'No'],
+    proceso: ['<span class="marca-esp">&hellip;</span>', 'En trámite'],
+  }
   const columna = (k, v, d) => `<div><div class="k">${k}</div>${v}${
     d ? `<div class="d">${d}</div>` : ''}</div>`
-  const celda = v => {
-    const x = senal(v)
+  const celda = (v, mapa = SENAL) => {
+    const x = mapa[String(v || '').toLowerCase()]
     return x ? `<div class="v">${x[0]}${x[1]}</div>`
              : `<div class="v" style="font-size:14px;color:var(--tenue)">Pendiente de confirmar</div>`
   }
@@ -869,6 +972,10 @@ function pintar(cliente, c, pagos, docs, avance, zona, ficha){
             licPie)}
         ${columna('Factibilidad de luz',  celda(ficha.factibilidad_luz),  'CFE')}
         ${columna('Factibilidad de agua', celda(ficha.factibilidad_agua), 'SIAPA')}
+        ${ficha.dictamen_cultura ? columna('Dictamen técnico de Cultura',
+            celda(ficha.dictamen_cultura, APROBADO), 'Secretaría de Cultura de Jalisco') : ''}
+        ${ficha.dictamen_transito ? columna('Estudio de impacto al tránsito',
+            celda(ficha.dictamen_transito, APROBADO), 'Dirección de Movilidad y Transporte') : ''}
       </div>
       ${ficha.nota ? `<div class="corte">${esc(ficha.nota)}</div>` : ''}
     </div>`
@@ -1260,6 +1367,7 @@ function pintar(cliente, c, pagos, docs, avance, zona, ficha){
   ].filter(Boolean).join(' · ')
 
   esconder('cargando'); ver('marco')
+  medirBarraAdmin()
   abrir((location.hash || '').replace('#','') || 'pagos')
 
   // ---------- Enlaces temporales ----------
