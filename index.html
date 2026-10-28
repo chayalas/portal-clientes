@@ -444,6 +444,28 @@ const SUPABASE_URL = 'https://lyumrzowusjzfeqkglvm.supabase.co'
 const SUPABASE_KEY = 'sb_publishable_623gFtuDfFpP_Ghi9KEjAA_jlqb3RDG'
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY)
 
+// ---------- Una sola dirección ----------
+// El portal vive en clientes.walkmansion.com. La dirección vieja de Vercel sigue
+// sirviendo el MISMO archivo —así funciona la publicación— y ahí está la trampa:
+// el enlace de acceso se pedía con `location.origin`, o sea con la dirección desde
+// la que uno estuviera mirando. Quien entrara por la de Vercel recibía un correo
+// que lo regresaba a la de Vercel. Funcionaba, y por eso no se notaba: el cliente
+// simplemente terminaba viendo su expediente en una dirección que no es su portal.
+//
+// Dos candados, a propósito:
+//   · abajo, el enlace SIEMPRE se pide hacia CANONICO, no hacia donde uno esté;
+//   · aquí, quien llegue por otra dirección es reenviado.
+// Y un tercero fuera del código: en Supabase ya solo se permite redirigir a
+// clientes.walkmansion.com, así que ni equivocándose se puede mandar a otro lado.
+//
+// ⚠ No se reenvía cuando la URL trae el token del enlace: eso es una sesión a medio
+//   abrir y moverla la rompería. Esos correos viejos aterrizan donde apuntaban.
+const CANONICO = 'https://clientes.walkmansion.com'
+if (location.origin !== CANONICO
+    && !location.hash.includes('access_token') && !location.search.includes('code=')) {
+  location.replace(CANONICO + location.pathname + location.search + location.hash)
+}
+
 
 // ---------- El skyline de la entrada ----------
 // La ciudad —Puerta de Hierro— reconstruida en alambre, con las siluetas de las fotos
@@ -707,7 +729,9 @@ $('formEntrada').addEventListener('submit', async e => {
 
   const { error } = await sb.auth.signInWithOtp({
     email: correo,
-    options: { emailRedirectTo: location.origin + location.pathname, shouldCreateUser: false }
+    // CANONICO, no `location.origin`: el enlace tiene que traer al cliente a SU portal,
+    // no a la dirección desde la que se pidió.
+    options: { emailRedirectTo: CANONICO + '/', shouldCreateUser: false }
   })
   $('btnEntrar').disabled = false
   if (error) {
