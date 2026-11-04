@@ -862,7 +862,7 @@ async function cargar(){
   const [{ data: pagos }, { data: docs }, { data: avances }, { data: zonas }, { data: fichas }] = await Promise.all([
     sb.from('pagos').select('fecha, concepto, monto, forma_pago, banco_parcial, num_recibo, estado, comprobante_path')
       .order('fecha', { ascending: true }),
-    sb.from('documentos').select('tipo, nombre, storage_path').order('tipo'),
+    sb.from('documentos').select('tipo, nombre, storage_path, es_visual').order('tipo'),
     sb.from('avances_obra')
       .select('fecha, fecha_pedido, porcentaje, etapa, descripcion, fotos')
       .eq('torre_id', compra.unidades.torres.id).order('fecha', { ascending: false }).limit(1),
@@ -1121,9 +1121,25 @@ function pintar(cliente, c, pagos, docs, avance, zona, ficha){
   // ===== 3. TU UNIDAD =====
   // Los planos y ubicaciones se ven AQUÍ como imágenes, no enterrados en una lista
   // de documentos: son parte de entender qué compraste, no papelería.
-  const VISUALES = ['Plano de tu unidad','Render de tu unidad','Ubicacion de tu unidad','Plano del desarrollo']
-  const visuales = docs.filter(x => VISUALES.includes(x.tipo))
-  const papeles  = docs.filter(x => !VISUALES.includes(x.tipo))
+  // Qué va a la galería y qué al cajón de papeles lo dice el RENGLÓN, no su nombre.
+  //
+  // Antes esto era una lista de cuatro nombres escritos a mano. Dos problemas, y los dos
+  // se pagaron: si el `tipo` no estaba escrito exactamente igual, el documento se iba al
+  // cajón equivocado (C-30, la imagen que «no salía» y sí estaba); y la lista tenía CUATRO
+  // lugares, así que el quinto visual no cabía sin tocar código. Carlos pidió el quinto
+  // —la ubicación en planta— y ahí se acabó la lista.
+  //
+  // ⚠ EL INTENTO QUE NO SE QUEDÓ, Y POR QUÉ. Lo primero que escribí fue «decide la
+  //   extensión: lo que es .png se ve, lo que es .pdf se abre». Suena mejor que una lista
+  //   y está mal: Lester tiene su RELACIÓN DE PAGOS en .jpg. Ese renglón se habría ido a
+  //   «Planos y ubicación», entre el plano y el render, sin que nadie lo tocara. Se
+  //   descubrió comprobando contra sus 7 documentos antes de publicar, no después.
+  //
+  //   La lección es la misma de siempre en este proyecto: adivinar a partir del nombre de
+  //   un archivo —o de su extensión— es adivinar. Ahora cada documento TRAE ESCRITO si es
+  //   visual, y no hay límite de cuántos pueden serlo.
+  const visuales = docs.filter(x => x.es_visual)
+  const papeles  = docs.filter(x => !x.es_visual)
 
   const filas = [
     ['Desarrollo', esc(d.nombre)],
