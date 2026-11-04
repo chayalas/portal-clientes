@@ -859,8 +859,9 @@ async function cargar(){
     return
   }
 
-  const [{ data: pagos }, { data: docs }, { data: avances }, { data: zonas }, { data: fichas }] = await Promise.all([
-    sb.from('pagos').select('fecha, concepto, monto, forma_pago, banco_parcial, num_recibo, estado, comprobante_path')
+  const [{ data: pagos }, { data: docs }, { data: avances }, { data: zonas }, { data: fichas },
+         { data: plan }] = await Promise.all([
+    sb.from('pagos').select('fecha, concepto, monto, forma_pago, banco_parcial, num_recibo, estado, comprobante_path, plan_numero')
       .order('fecha', { ascending: true }),
     sb.from('documentos').select('tipo, nombre, storage_path, es_visual').order('tipo'),
     sb.from('avances_obra')
@@ -875,15 +876,18 @@ async function cargar(){
     // La política de la base solo devuelve la del desarrollo donde el cliente compró.
     sb.from('ficha_legal')
       .select('licencia_estado, licencia_numero, licencia_municipio, licencia_fecha, factibilidad_luz, factibilidad_agua, dictamen_cultura, dictamen_transito, deposito_banco, deposito_clabe, deposito_cuenta, deposito_titular, deposito_verificado, fuente, nota')
-      .limit(1)
+      .limit(1),
+    // El plan de pagos, renglón por renglón. Solo lo tienen los clientes cuyo plan NO es
+    // «N pagos iguales»; para los demás esta consulta devuelve vacío y manda lo de siempre.
+    sb.from('plan_pagos').select('numero, fecha, monto').order('numero')
   ])
 
   pintar(cliente, compra, pagos || [], docs || [], (avances || [])[0] || null,
-         (zonas || [])[0] || null, (fichas || [])[0] || null)
+         (zonas || [])[0] || null, (fichas || [])[0] || null, plan || [])
 }
 
 // ---------- Pintado ----------
-function pintar(cliente, c, pagos, docs, avance, zona, ficha){
+function pintar(cliente, c, pagos, docs, avance, zona, ficha, plan = []){
   const u = c.unidades, m = u.modelos, t = u.torres, d = t.desarrollos
 
   // ===== 1. PAGOS =====
@@ -896,8 +900,31 @@ function pintar(cliente, c, pagos, docs, avance, zona, ficha){
   const montoEspera = enEspera.reduce((a,p) => a + Number(p.monto), 0)
   const pagadasMens = pagos.filter(p => /mensualidad/i.test(p.concepto)).length
   const faltan = (c.num_mensualidades || 0) - pagadasMens
+  // ---- El plan, cuando NO es «N pagos iguales» ----
+  // Las tres columnas de `compras` (cuántos, de cuánto, qué día) suponen que todos los
+  // pagos son idénticos y consecutivos. El plan de Moisés no lo es: trae dos pagos de
+  // $150,000 entre 26 de $17,066.21, y sus febreros no caen en día 30 porque febrero no
+  // tiene 30. Con esa fórmula su fecha se desfasaba dos meses antes de terminar, y el
+  // monto habría dicho $17,066.21 el día que CADU le cobrara $150,000.
+  //
+  // Cuando el plan está cargado renglón por renglón, MANDA EL PLAN: el monto, la fecha y
+  // el número salen del renglón firmado, no de una cuenta que los supone todos iguales.
+  // Quien no tiene plan cargado —Jorge, Lester, Bonilla— sigue por el camino de siempre.
+  const plPagados = new Set(pagos.map(p => p.plan_numero).filter(n => n != null))
+  const plPend    = plan.filter(r => !plPagados.has(r.numero))
+  const plSig     = plPend[0]
+
   let hero
-  if (faltan > 0 && c.primera_mensualidad) {
+  if (plSig) {
+    hero = `<div class="hero">
+      <div class="etiqueta">Tu próximo pago</div>
+      <div class="monto">${dinero(plSig.monto)}</div>
+      <div class="cuando">Vence el ${fecha(plSig.fecha)}</div>
+      <div class="nota">Pago ${plSig.numero} de ${plan.length}
+        · ${plPend.length === 1 ? 'es el último'
+          : plPend.length === 2 ? 'te falta 1 después de este'
+          : `te faltan ${plPend.length-1} después de este`}</div></div>`
+  } else if (!plan.length && faltan > 0 && c.primera_mensualidad) {
     const vence = sumarMeses(c.primera_mensualidad, pagadasMens)
     hero = `<div class="hero">
       <div class="etiqueta">Tu próximo pago</div>
@@ -915,7 +942,7 @@ function pintar(cliente, c, pagos, docs, avance, zona, ficha){
       <div class="etiqueta">Saldo a liquidar contra entrega</div>
       <div class="monto">${dinero(saldo)}</div>
       <div class="cuando">Entrega estimada: ${fecha(t.entrega_estimada)}</div>
-      <div class="nota">Ya cubriste tus ${c.num_mensualidades} mensualidades.
+      <div class="nota">Ya cubriste tus ${plan.length || c.num_mensualidades} ${plan.length ? 'pagos' : 'mensualidades'}.
         Este saldo se paga al momento de la entrega.</div></div>`
   }
 
