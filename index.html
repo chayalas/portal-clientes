@@ -870,7 +870,7 @@ async function cargar(){
     // El mercado de la zona es el MISMO para todos los clientes de ese desarrollo.
     // Se guarda una vez por zona y sirve a todos: es la regla de arquitectura del proyecto.
     sb.from('zonas_mercado')
-      .select('zona, nuevo_pesos_m2, existente_pesos_m2, prima_nuevo_pct, renta_1rec, renta_2rec, renta_3rec, fecha_corte, fuente')
+      .select('zona, nuevo_pesos_m2, existente_pesos_m2, prima_nuevo_pct, renta_1rec, renta_2rec, renta_3rec, fecha_corte, fuente, on_base, on_por_m2, on_n, on_r2, on_desc_pct, on_fuente, on_recamaras')
       .eq('zona', compra.unidades.torres.desarrollos.zona || '').limit(1),
     // La ficha legal del desarrollo: licencia, factibilidades y a dónde deposita.
     // La política de la base solo devuelve la del desarrollo donde el cliente compró.
@@ -1313,23 +1313,78 @@ function pintar(cliente, c, pagos, docs, avance, zona, ficha, plan = []){
                     : m.recamaras >= 3  ? zona.renta_3rec : null
 
     const pct = n => (n >= 0 ? '+' : '−') + Math.abs(n).toFixed(1) + '%'
+    const pct0 = n => (n >= 0 ? '+' : '−') + Math.abs(n).toFixed(0) + '%'
     const porM2 = n => dinero(Math.round(n)).replace('.00','') + ' /m²'
 
-    vistaMercado = `<div class="tarjeta">
-      <div class="etiqueta">Contra lo que hay en tu zona</div>
+    // ---- El veredicto: contra obra nueva DE SU TAMAÑO, no contra la mediana de todo ----
+    //
+    // Hasta noviembre de 2026 esto decía «tu metro contra lo ya entregado» y a un cliente
+    // de 42 m² le salía +48%. Nunca fue un número falso; era la comparación más ancha que
+    // existe: su preventa nueva y chica contra la mediana de TODO lo existente, de
+    // cualquier tamaño y cualquier antigüedad.
+    //
+    // El levantamiento propio de noviembre (30 departamentos de 1 recámara en la Americana)
+    // encontró lo que de verdad explica el precio, y no es la etapa de obra: es el TAMAÑO.
+    // Correlación de −0.42 entre $/m² y m². Las tres etapas —preventa, entregado, usado—
+    // no se separaron entre sí; el tamaño sí separa.
+    //
+    //     precio = base + tarifa × m²          n=17 · R² = 0.78
+    //
+    // Misma forma que el modelo de renta de septiembre: un precio por existir en la colonia
+    // más una tarifa por metro. Por eso los chicos cuestan más por metro.
+    //
+    // ⚠ POR QUÉ ES UN RANGO Y NO UN NÚMERO. Algunos anuncios publican precio de CONTADO
+    //   —hasta 11.6% abajo de su propia lista, según la escalera de CADU— y el anuncio casi
+    //   nunca lo declara. No se puede saber cuántos de la muestra son de contado, así que
+    //   no se puede dar un punto. Se da la banda completa y se explica por qué existe.
+    //   Inventar el punto medio sería fingir una precisión que la muestra no tiene.
+    // ⚠ EL MODELO SOLO APLICA A LA TIPOLOGÍA QUE SE LEVANTÓ. El de noviembre son 30
+    //   departamentos de UNA recámara. Usarlo con un dos recámaras sería extrapolar: un
+    //   86 m² de una recámara es un loft y uno de dos es otro producto, y no se pagan
+    //   igual. Quien no cae en la tipología medida se queda con la comparación anterior.
+    const tieneModelo = zona.on_base != null && zona.on_por_m2 != null
+      && (zona.on_recamaras == null || Number(zona.on_recamaras) === Number(m.recamaras))
+    let veredicto
+    if (tieneModelo) {
+      const refBaja = Number(zona.on_base) + Number(zona.on_por_m2) * supTotal
+      const refAlta = refBaja / (1 - Number(zona.on_desc_pct || 0) / 100)
+      const a = (c.precio_departamento / refBaja - 1) * 100
+      const b = (c.precio_departamento / refAlta - 1) * 100
+      const lo = Math.min(a, b), hi = Math.max(a, b)
+      // «En línea» se juzga por el extremo ALTO de la banda, no por el bajo. Una banda que
+      // llega a +14% no está en línea aunque empiece en 0: decirlo sería quedarse con la
+      // mitad que conviene.
+      const enLinea = hi <= 8
+      veredicto = `
+      <div class="compara"><div class="k">Obra nueva de tu tamaño
+        <small>${supTotal} m² en ${esc(zona.zona)} · ${zona.on_n} comparables propios</small></div>
+        <div class="v">${porM2(refBaja / supTotal)} a ${porM2(refAlta / supTotal)}</div></div>
 
-      <div class="compara"><div class="k">Tu departamento
-        <small>lo que pagaste entre tus ${supTotal} m² totales, cajón incluido</small></div>
-        <div class="v">${porM2(miM2)}</div></div>
+      <div class="resalta">
+        <div class="k">Tu metro contra obra nueva de tu tamaño</div>
+        <div class="v">${pct0(lo)} a ${pct0(hi)}</div>
+      </div>
 
-      <div class="compara"><div class="k">Departamentos ya entregados
-        <small>lo que se ofrece hoy en ${esc(zona.zona)}, producto existente</small></div>
-        <div class="v">${porM2(existente)}</div></div>
+      <p style="font-size:14px;line-height:1.55;margin-top:14px">
+        Si buscas anuncios vas a encontrar casi puro producto ya entregado, y contra eso tu
+        metro sale muy arriba. <b>Esa no es la comparación correcta.</b> Los departamentos
+        chicos siempre cuestan más por metro que los grandes: uno de 42 m² y uno de 90 m²
+        no se miden con el mismo número. Lo medimos contra obra nueva
+        <b>de tu tamaño</b> en ${esc(zona.zona)}, con ${zona.on_n} comparables levantados
+        por nosotros.
+        ${enLinea
+          ? `Tu metro está <b>en línea con esa obra nueva comparable.</b>`
+          : `Tu metro está <b>${pct0(lo)} a ${pct0(hi)} arriba</b> de esa obra nueva comparable.
+             Lo que lo sostiene es lo que tiene tu unidad en particular —nivel, vista,
+             terraza, amenidades—, y eso se mide departamento por departamento.`}
+      </p>
 
-      <div class="compara"><div class="k">Departamentos sin estrenar
-        <small>obra nueva en ${esc(zona.zona)}</small></div>
-        <div class="v">${porM2(nuevoZona)}</div></div>
-
+      <div class="corte">Es un rango y no un número porque algunos anuncios publican el
+        precio de contado, que es más bajo que el de lista, y casi ninguno lo declara.
+        El extremo de abajo supone que ninguno lo hace; el de arriba, que todos.
+        ${zona.on_fuente ? esc(zona.on_fuente) + '.' : ''}</div>`
+    } else {
+      veredicto = `
       <div class="resalta">
         <div class="k">Tu metro contra lo ya entregado</div>
         <div class="v">${pct(sobreExistente)}</div>
@@ -1348,7 +1403,25 @@ function pintar(cliente, c, pagos, docs, avance, zona, ficha, plan = []){
              unidad en particular —nivel, vista, terraza, amenidades— y eso se mide
              departamento por departamento, no con la mediana de la colonia.`}
         Contra la obra nueva de tu zona estás ${pct(sobreNuevo)}.
-      </p>
+      </p>`
+    }
+
+    vistaMercado = `<div class="tarjeta">
+      <div class="etiqueta">Contra lo que hay en tu zona</div>
+
+      <div class="compara"><div class="k">Tu departamento
+        <small>lo que pagaste entre tus ${supTotal} m² totales, cajón incluido</small></div>
+        <div class="v">${porM2(miM2)}</div></div>
+
+      <div class="compara"><div class="k">Departamentos ya entregados
+        <small>lo que se ofrece hoy en ${esc(zona.zona)}, producto existente</small></div>
+        <div class="v">${porM2(existente)}</div></div>
+
+      ${tieneModelo ? '' : `<div class="compara"><div class="k">Departamentos sin estrenar
+        <small>obra nueva en ${esc(zona.zona)}</small></div>
+        <div class="v">${porM2(nuevoZona)}</div></div>`}
+
+      ${veredicto}
 
       ${rentaZona ? `<div class="compara" style="margin-top:16px">
         <div class="k">Renta de un ${m.recamaras} recámara${m.recamaras > 1 ? 's' : ''} en tu zona
